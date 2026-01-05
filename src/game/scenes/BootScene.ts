@@ -38,9 +38,6 @@ export class BootScene extends Phaser.Scene {
       loadingText.destroy();
     });
 
-    // Load character sprite image
-    this.load.image('menuCharacters', '/src/assets/game-characters.png');
-
     // Generate all game graphics
     this.generateGameAssets();
   }
