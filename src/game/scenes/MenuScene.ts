@@ -55,7 +55,7 @@ export class MenuScene extends Phaser.Scene {
     title.setOrigin(0.5);
 
     // Subtitle
-    const subtitle = this.add.text(width / 2, 160, 'A Platformer Adventure', {
+    const subtitle = this.add.text(width / 2, 160, 'An Endless Runner Adventure', {
       fontFamily: 'Amiri',
       fontSize: '24px',
       color: '#D4A574',
@@ -144,22 +144,13 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Instructions
-    const instructions = this.add.text(width / 2, height - 60, 
-      '← → to move | SPACE to jump | X to throw sandals', {
+    const instructions = this.add.text(width / 2, height - 50, 
+      'Tap or SPACE to jump | X to throw sandals when powered up', {
       fontFamily: 'Amiri',
       fontSize: '16px',
       color: '#666666',
     });
     instructions.setOrigin(0.5);
-
-    // Mobile instructions
-    const mobileInstructions = this.add.text(width / 2, height - 35,
-      'Mobile: Touch left/right sides to move, swipe up to jump', {
-      fontFamily: 'Amiri',
-      fontSize: '14px',
-      color: '#888888',
-    });
-    mobileInstructions.setOrigin(0.5);
 
     // Fade in
     this.cameras.main.fadeIn(500);
