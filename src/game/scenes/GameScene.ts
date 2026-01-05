@@ -1,28 +1,25 @@
 import Phaser from 'phaser';
-import { PLAYER_SPEED, JUMP_VELOCITY, SANDAL_SPEED } from '../config';
+import { JUMP_VELOCITY, SANDAL_SPEED } from '../config';
 
 interface GameState {
   score: number;
   lives: number;
   hasPowerUp: boolean;
-  level: number;
 }
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private platforms!: Phaser.Physics.Arcade.StaticGroup;
+  private ground!: Phaser.Physics.Arcade.StaticGroup;
   private sweets!: Phaser.Physics.Arcade.Group;
   private teas!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
+  private obstacles!: Phaser.Physics.Arcade.Group;
   private sandals!: Phaser.Physics.Arcade.Group;
-  private ground!: Phaser.Physics.Arcade.StaticGroup;
   
   private gameState: GameState = {
     score: 0,
     lives: 3,
     hasPowerUp: false,
-    level: 1,
   };
 
   private scoreText!: Phaser.GameObjects.Text;
@@ -32,10 +29,12 @@ export class GameScene extends Phaser.Scene {
   private attackKey!: Phaser.Input.Keyboard.Key;
   private canThrow = true;
   private isInvulnerable = false;
+  private isGameOver = false;
   
-  private touchStartX = 0;
-  private touchStartY = 0;
-  private isTouching = false;
+  private gameSpeed = 250;
+  private spawnTimer!: Phaser.Time.TimerEvent;
+  private difficultyTimer!: Phaser.Time.TimerEvent;
+  private scoreTimer!: Phaser.Time.TimerEvent;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -49,10 +48,11 @@ export class GameScene extends Phaser.Scene {
       score: 0,
       lives: 3,
       hasPowerUp: false,
-      level: 1,
     };
     this.isInvulnerable = false;
     this.canThrow = true;
+    this.isGameOver = false;
+    this.gameSpeed = 250;
 
     // Create parallax background
     this.createBackground(width, height);
@@ -64,77 +64,45 @@ export class GameScene extends Phaser.Scene {
       tile.setScale(1).refreshBody();
     }
 
-    // Create platforms
-    this.platforms = this.physics.add.staticGroup();
-    this.createLevel();
-
-    // Create collectibles
+    // Create groups
     this.sweets = this.physics.add.group();
     this.teas = this.physics.add.group();
-    this.createCollectibles();
-
-    // Create enemies
     this.enemies = this.physics.add.group();
-    this.createEnemies();
-
-    // Create sandals group
+    this.obstacles = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Create player
-    this.player = this.physics.add.sprite(100, height - 150, 'player');
+    // Create player (positioned on the left side)
+    this.player = this.physics.add.sprite(100, height - 100, 'player');
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setSize(20, 40);
     this.player.setOffset(6, 8);
+    this.player.setGravityY(400);
 
     // Collisions
     this.physics.add.collider(this.player, this.ground);
-    this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.enemies, this.ground);
-    this.physics.add.collider(this.enemies, this.platforms);
+    this.physics.add.collider(this.obstacles, this.ground);
 
     // Overlaps
-    this.physics.add.overlap(
-      this.player,
-      this.sweets,
-      this.collectSweet,
-      undefined,
-      this
-    );
+    this.physics.add.overlap(this.player, this.sweets, this.collectSweet, undefined, this);
+    this.physics.add.overlap(this.player, this.teas, this.collectTea, undefined, this);
+    this.physics.add.overlap(this.player, this.enemies, this.handleEnemyCollision, undefined, this);
+    this.physics.add.overlap(this.player, this.obstacles, this.handleObstacleCollision, undefined, this);
+    this.physics.add.overlap(this.sandals, this.enemies, this.sandalHitEnemy, undefined, this);
 
-    this.physics.add.overlap(
-      this.player,
-      this.teas,
-      this.collectTea,
-      undefined,
-      this
-    );
-
-    this.physics.add.overlap(
-      this.player,
-      this.enemies,
-      this.handleEnemyCollision,
-      undefined,
-      this
-    );
-
-    this.physics.add.overlap(
-      this.sandals,
-      this.enemies,
-      this.sandalHitEnemy,
-      undefined,
-      this
-    );
-
-    // Input
-    this.cursors = this.input.keyboard!.createCursorKeys();
+    // Input - Space or click/tap to jump
+    this.input.keyboard?.on('keydown-SPACE', () => this.jump());
     this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.X);
-
-    // Touch controls
-    this.setupTouchControls();
+    
+    // Touch/click to jump
+    this.input.on('pointerdown', () => this.jump());
 
     // HUD
     this.createHUD();
+
+    // Start spawning obstacles and collectibles
+    this.startSpawning();
 
     // Fade in
     this.cameras.main.fadeIn(500);
@@ -156,11 +124,7 @@ export class GameScene extends Phaser.Scene {
 
     // Floating lanterns
     for (let i = 0; i < 6; i++) {
-      const lantern = this.add.image(
-        80 + i * 140,
-        60 + Math.sin(i * 0.8) * 20,
-        'lantern'
-      );
+      const lantern = this.add.image(80 + i * 140, 60 + Math.sin(i * 0.8) * 20, 'lantern');
       lantern.setScale(0.6);
       lantern.setAlpha(0.7);
       this.tweens.add({
@@ -172,97 +136,6 @@ export class GameScene extends Phaser.Scene {
         ease: 'Sine.easeInOut',
       });
     }
-  }
-
-  createLevel(): void {
-    const { width, height } = this.cameras.main;
-
-    // Platform layout
-    const platformPositions = [
-      { x: 200, y: height - 150 },
-      { x: 350, y: height - 220 },
-      { x: 500, y: height - 150 },
-      { x: 650, y: height - 280 },
-      { x: 150, y: height - 320 },
-      { x: 400, y: height - 380 },
-      { x: 600, y: height - 420 },
-      { x: 250, y: height - 480 },
-    ];
-
-    platformPositions.forEach(pos => {
-      const platform = this.platforms.create(pos.x, pos.y, 'platform') as Phaser.Physics.Arcade.Sprite;
-      platform.refreshBody();
-    });
-  }
-
-  createCollectibles(): void {
-    const { height } = this.cameras.main;
-
-    // Chebakia sweets
-    const sweetPositions = [
-      { x: 200, y: height - 190 },
-      { x: 350, y: height - 260 },
-      { x: 500, y: height - 190 },
-      { x: 150, y: height - 360 },
-      { x: 400, y: height - 420 },
-      { x: 600, y: height - 460 },
-      { x: 300, y: height - 100 },
-      { x: 700, y: height - 100 },
-    ];
-
-    sweetPositions.forEach(pos => {
-      const sweet = this.sweets.create(pos.x, pos.y, 'chebakia') as Phaser.Physics.Arcade.Sprite;
-      (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-      this.tweens.add({
-        targets: sweet,
-        y: sweet.y - 5,
-        duration: 800,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    });
-
-    // Mint tea power-ups
-    const teaPositions = [
-      { x: 650, y: height - 320 },
-      { x: 250, y: height - 520 },
-    ];
-
-    teaPositions.forEach(pos => {
-      const tea = this.teas.create(pos.x, pos.y, 'tea') as Phaser.Physics.Arcade.Sprite;
-      (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-      tea.setScale(1.2);
-      this.tweens.add({
-        targets: tea,
-        y: tea.y - 8,
-        angle: 5,
-        duration: 1000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    });
-  }
-
-  createEnemies(): void {
-    const { width, height } = this.cameras.main;
-
-    const enemyPositions = [
-      { x: 400, y: height - 80, speed: 50 },
-      { x: 600, y: height - 80, speed: 70 },
-      { x: 200, y: height - 180, speed: 40 },
-      { x: 500, y: height - 180, speed: 60 },
-    ];
-
-    enemyPositions.forEach(pos => {
-      const enemy = this.enemies.create(pos.x, pos.y, 'cockroach') as Phaser.Physics.Arcade.Sprite;
-      enemy.setData('speed', pos.speed);
-      enemy.setData('direction', 1);
-      enemy.setBounce(0);
-      enemy.setSize(28, 20);
-      enemy.setOffset(2, 6);
-    });
   }
 
   createHUD(): void {
@@ -305,22 +178,154 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  setupTouchControls(): void {
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.touchStartX = pointer.x;
-      this.touchStartY = pointer.y;
-      this.isTouching = true;
+  startSpawning(): void {
+    // Spawn objects
+    this.spawnTimer = this.time.addEvent({
+      delay: 1200,
+      callback: this.spawnObject,
+      callbackScope: this,
+      loop: true,
     });
 
-    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      const deltaY = this.touchStartY - pointer.y;
+    // Increase difficulty over time
+    this.difficultyTimer = this.time.addEvent({
+      delay: 8000,
+      callback: () => {
+        this.gameSpeed = Math.min(this.gameSpeed + 25, 450);
+        // Restart spawn timer with faster delay
+        if (this.spawnTimer.delay > 600) {
+          const newDelay = this.spawnTimer.delay - 50;
+          this.spawnTimer.remove();
+          this.spawnTimer = this.time.addEvent({
+            delay: newDelay,
+            callback: this.spawnObject,
+            callbackScope: this,
+            loop: true,
+          });
+        }
+      },
+      callbackScope: this,
+      loop: true,
+    });
+
+    // Score increases over time (survival bonus)
+    this.scoreTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        if (!this.isGameOver) {
+          this.gameState.score += 10;
+          this.scoreText.setText(`Score: ${this.gameState.score}`);
+        }
+      },
+      callbackScope: this,
+      loop: true,
+    });
+  }
+
+  spawnObject(): void {
+    if (this.isGameOver) return;
+
+    const { width, height } = this.cameras.main;
+    const rand = Math.random();
+
+    if (rand < 0.35) {
+      // Spawn chebakia (sweet) - at ground level or slightly above
+      const yPos = height - 80 - Math.random() * 40;
+      const sweet = this.sweets.create(width + 50, yPos, 'chebakia') as Phaser.Physics.Arcade.Sprite;
+      const body = sweet.body as Phaser.Physics.Arcade.Body;
+      body.setAllowGravity(false);
+      body.setVelocityX(-this.gameSpeed);
+
+      this.tweens.add({
+        targets: sweet,
+        y: sweet.y - 8,
+        duration: 400,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else if (rand < 0.45) {
+      // Spawn tea power-up
+      const tea = this.teas.create(width + 50, height - 100, 'tea') as Phaser.Physics.Arcade.Sprite;
+      const body = tea.body as Phaser.Physics.Arcade.Body;
+      body.setAllowGravity(false);
+      body.setVelocityX(-this.gameSpeed);
+      tea.setScale(1.2);
+
+      this.tweens.add({
+        targets: tea,
+        y: tea.y - 10,
+        alpha: 0.8,
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else if (rand < 0.75) {
+      // Spawn cockroach enemy
+      const enemy = this.enemies.create(width + 50, height - 80, 'cockroach') as Phaser.Physics.Arcade.Sprite;
+      const body = enemy.body as Phaser.Physics.Arcade.Body;
+      body.setAllowGravity(false);
+      body.setVelocityX(-this.gameSpeed - 30);
+      enemy.setSize(28, 20);
+      enemy.setOffset(2, 6);
+    } else {
+      // Spawn obstacle (pot/vase)
+      const obstacle = this.obstacles.create(width + 50, height - 80, 'platform') as Phaser.Physics.Arcade.Sprite;
+      const body = obstacle.body as Phaser.Physics.Arcade.Body;
+      body.setAllowGravity(false);
+      body.setVelocityX(-this.gameSpeed);
+      obstacle.setScale(0.8);
+    }
+  }
+
+  jump(): void {
+    if (this.isGameOver) return;
+    
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    if (body.touching.down || body.blocked.down) {
+      body.setVelocityY(JUMP_VELOCITY);
       
-      // Swipe up to jump
-      if (deltaY > 50 && this.player.body!.touching.down) {
-        (this.player.body as Phaser.Physics.Arcade.Body).setVelocityY(JUMP_VELOCITY);
-      }
-      
-      this.isTouching = false;
+      // Jump squash and stretch animation
+      this.tweens.add({
+        targets: this.player,
+        scaleX: 0.8,
+        scaleY: 1.2,
+        duration: 100,
+        yoyo: true,
+      });
+    } else if (this.gameState.hasPowerUp) {
+      // Throw sandal when in air with power-up
+      this.throwSandal();
+    }
+  }
+
+  throwSandal(): void {
+    if (!this.gameState.hasPowerUp || !this.canThrow) return;
+
+    this.canThrow = false;
+
+    const sandal = this.sandals.create(this.player.x + 30, this.player.y, 'sandal') as Phaser.Physics.Arcade.Sprite;
+    const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
+    sandalBody.setAllowGravity(false);
+    sandalBody.setVelocityX(SANDAL_SPEED);
+
+    // Spinning animation
+    this.tweens.add({
+      targets: sandal,
+      angle: 360,
+      duration: 300,
+      repeat: -1,
+    });
+
+    // Destroy after distance
+    this.time.delayedCall(1500, () => {
+      if (sandal.active) sandal.destroy();
+    });
+
+    // Cooldown
+    this.time.delayedCall(400, () => {
+      this.canThrow = true;
     });
   }
 
@@ -329,8 +334,7 @@ export class GameScene extends Phaser.Scene {
     sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
     const sweetSprite = sweet as Phaser.Physics.Arcade.Sprite;
-    
-    // Collection effect
+
     this.tweens.add({
       targets: sweetSprite,
       scale: 0,
@@ -368,14 +372,10 @@ export class GameScene extends Phaser.Scene {
 
     this.gameState.hasPowerUp = true;
     this.powerUpIndicator.setVisible(true);
-
-    // Power-up effect on player
     this.player.setTint(0x32CD32);
-    
-    // Flash effect
+
     this.cameras.main.flash(200, 50, 205, 50);
 
-    // Big score bonus
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
 
@@ -406,8 +406,19 @@ export class GameScene extends Phaser.Scene {
     // Check if player is jumping on enemy
     if (playerBody.velocity.y > 0 && playerBody.y < enemyBody.y - 10) {
       this.defeatEnemy(enemySprite);
-      playerBody.setVelocityY(-250); // Bounce
+      playerBody.setVelocityY(-250);
     } else if (!this.isInvulnerable) {
+      this.takeDamage();
+    }
+  }
+
+  handleObstacleCollision(
+    player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    obstacle: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+  ): void {
+    if (!this.isInvulnerable) {
+      const obstacleSprite = obstacle as Phaser.Physics.Arcade.Sprite;
+      obstacleSprite.destroy();
       this.takeDamage();
     }
   }
@@ -439,6 +450,17 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  sandalHitEnemy(
+    sandal: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+  ): void {
+    const sandalSprite = sandal as Phaser.Physics.Arcade.Sprite;
+    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
+
+    sandalSprite.destroy();
+    this.defeatEnemy(enemySprite);
+  }
+
   takeDamage(): void {
     this.isInvulnerable = true;
     this.gameState.lives--;
@@ -457,10 +479,6 @@ export class GameScene extends Phaser.Scene {
       },
     });
 
-    // Knockback
-    const knockbackDir = this.player.flipX ? 150 : -150;
-    (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(knockbackDir, -200);
-
     // Camera shake
     this.cameras.main.shake(200, 0.01);
 
@@ -469,130 +487,40 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  throwSandal(): void {
-    if (!this.gameState.hasPowerUp || !this.canThrow) return;
-
-    this.canThrow = false;
-    
-    const direction = this.player.flipX ? -1 : 1;
-    const sandal = this.sandals.create(
-      this.player.x + direction * 20,
-      this.player.y,
-      'sandal'
-    ) as Phaser.Physics.Arcade.Sprite;
-    
-    const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
-    sandalBody.setAllowGravity(false);
-    sandalBody.setVelocityX(SANDAL_SPEED * direction);
-    sandal.setFlipX(direction < 0);
-
-    // Spinning animation
-    this.tweens.add({
-      targets: sandal,
-      angle: direction > 0 ? 360 : -360,
-      duration: 500,
-      repeat: -1,
-    });
-
-    // Destroy after distance
-    this.time.delayedCall(1000, () => {
-      if (sandal.active) {
-        sandal.destroy();
-      }
-    });
-
-    // Cooldown
-    this.time.delayedCall(300, () => {
-      this.canThrow = true;
-    });
-  }
-
-  sandalHitEnemy(
-    sandal: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
-  ): void {
-    const sandalSprite = sandal as Phaser.Physics.Arcade.Sprite;
-    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
-    
-    sandalSprite.destroy();
-    this.defeatEnemy(enemySprite);
-  }
-
   gameOver(): void {
-    this.cameras.main.fade(500, 0, 0, 0);
-    this.time.delayedCall(500, () => {
+    this.isGameOver = true;
+    this.spawnTimer.destroy();
+    this.difficultyTimer.destroy();
+    this.scoreTimer.destroy();
+
+    this.physics.pause();
+    this.player.setTint(0xff0000);
+
+    this.cameras.main.fade(1000, 0, 0, 0);
+    this.time.delayedCall(1000, () => {
       this.scene.start('GameOverScene', { score: this.gameState.score });
     });
   }
 
   update(): void {
-    if (!this.player || !this.player.body) return;
+    if (this.isGameOver) return;
 
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-
-    // Horizontal movement
-    if (this.cursors.left.isDown) {
-      body.setVelocityX(-PLAYER_SPEED);
-      this.player.setFlipX(true);
-    } else if (this.cursors.right.isDown) {
-      body.setVelocityX(PLAYER_SPEED);
-      this.player.setFlipX(false);
-    } else if (this.isTouching) {
-      // Touch controls
-      const pointer = this.input.activePointer;
-      const { width } = this.cameras.main;
-      
-      if (pointer.x < width / 3) {
-        body.setVelocityX(-PLAYER_SPEED);
-        this.player.setFlipX(true);
-      } else if (pointer.x > (width * 2) / 3) {
-        body.setVelocityX(PLAYER_SPEED);
-        this.player.setFlipX(false);
-      } else {
-        body.setVelocityX(0);
-      }
-    } else {
-      body.setVelocityX(0);
-    }
-
-    // Jumping
-    if ((this.cursors.up.isDown || this.cursors.space.isDown) && body.touching.down) {
-      body.setVelocityY(JUMP_VELOCITY);
-    }
-
-    // Attack
-    if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
+    // Throw sandal with X key
+    if (Phaser.Input.Keyboard.JustDown(this.attackKey) && this.gameState.hasPowerUp) {
       this.throwSandal();
     }
 
-    // Update enemies
-    this.enemies.children.iterate((child) => {
-      const enemy = child as Phaser.Physics.Arcade.Sprite;
-      if (!enemy || !enemy.body) return true;
-      
-      const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
-      const speed = enemy.getData('speed') as number;
-      let direction = enemy.getData('direction') as number;
-
-      // Simple patrol
-      if (enemy.x < 100 || (enemyBody.blocked.left)) {
-        direction = 1;
-        enemy.setData('direction', 1);
-        enemy.setFlipX(false);
-      } else if (enemy.x > 700 || (enemyBody.blocked.right)) {
-        direction = -1;
-        enemy.setData('direction', -1);
-        enemy.setFlipX(true);
-      }
-
-      enemyBody.setVelocityX(speed * direction);
-      return true;
+    // Clean up off-screen objects
+    [this.sweets, this.teas, this.enemies, this.obstacles].forEach(group => {
+      group.getChildren().forEach((child) => {
+        const sprite = child as Phaser.Physics.Arcade.Sprite;
+        if (sprite.x < -100) sprite.destroy();
+      });
     });
 
-    // Check fall death
-    if (this.player.y > 650) {
-      this.takeDamage();
-      this.player.setPosition(100, 400);
-    }
+    this.sandals.getChildren().forEach((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (sprite.x > this.cameras.main.width + 100) sprite.destroy();
+    });
   }
 }
