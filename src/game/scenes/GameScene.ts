@@ -55,10 +55,10 @@ export class GameScene extends Phaser.Scene {
     // Create background
     this.createBackground();
 
-    // Create ground (full level width)
+    // Create ground (full level width) - positioned higher
     this.ground = this.physics.add.staticGroup();
     for (let x = 0; x < LEVEL_WIDTH + 64; x += 64) {
-      const tile = this.ground.create(x, LEVEL_HEIGHT - 32, 'ground') as Phaser.Physics.Arcade.Sprite;
+      const tile = this.ground.create(x, LEVEL_HEIGHT - 16, 'ground') as Phaser.Physics.Arcade.Sprite;
       tile.refreshBody();
     }
 
@@ -73,12 +73,12 @@ export class GameScene extends Phaser.Scene {
     this.sandals = this.physics.add.group();
 
     // Create player with PNG sprite
-    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 150, 'playerSprite');
-    this.player.setScale(0.08);
+    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 100, 'playerSprite');
+    this.player.setScale(0.06);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
-    this.player.setSize(400, 500);
-    this.player.setOffset(100, 50);
+    this.player.setSize(500, 600);
+    this.player.setOffset(50, 20);
     this.player.setGravityY(600);
 
     // Camera follows player horizontally
