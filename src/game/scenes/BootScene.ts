@@ -266,7 +266,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Create player walk animation using individual frame textures
+    // Create player walk animation
     if (!this.anims.exists('player-walk')) {
       this.anims.create({
         key: 'player-walk',
