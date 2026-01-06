@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { JUMP_VELOCITY, SANDAL_SPEED, PLAYER_SPEED } from "../config";
 import { LevelGenerator, PlatformData } from "../LevelGenerator";
+import { SeededRandom, GAME_SEED } from "../SeededRandom";
 
 interface GameState {
   score: number;
@@ -61,6 +62,9 @@ export class GameScene extends Phaser.Scene {
   private pauseMenu?: Phaser.GameObjects.Container;
   private soundButton?: Phaser.GameObjects.Container;
   private pauseButton?: Phaser.GameObjects.Container;
+  
+  // Seeded random for reproducible spawns - change GAME_SEED in SeededRandom.ts for different patterns
+  private rng: SeededRandom = new SeededRandom(GAME_SEED);
 
   constructor() {
     super({ key: "GameScene" });
@@ -387,31 +391,58 @@ export class GameScene extends Phaser.Scene {
       step: STEP,
       maxJumpHeight: MAX_JUMP_HEIGHT,
       maxHorizontalJump: MAX_HORIZONTAL_JUMP,
+      minPlatforms: 5,  // Level 1: 5-10 random obstacles
+      maxPlatforms: 10,
+      seed: GAME_SEED,
     });
 
     return generator.generate();
   }
 
   spawnLevelObjects(): void {
-    // Spawn sweets on reachable locations
+    // Spawn exactly 5 sweets using seeded random
     this.spawnSweets();
 
-    // Tea power-up - place on a mid-level platform, or fallback to ground
-    const midPlatform = this.platformData[Math.floor(this.platformData.length + 2)];
+    // Spawn exactly 1 tea using seeded random
+    this.spawnTea();
 
-    let teaX: number;
-    let teaY: number;
+    // Enemies - place on ground between platforms
+    this.spawnEnemies();
+  }
 
-    if (midPlatform) {
-      teaX = midPlatform.x;
-      teaY = midPlatform.y - 20;
-    } else {
-      // Fallback: spawn tea at mid-level on the ground
-      teaX = LEVEL_WIDTH / 2;
-      teaY = GROUND_Y - 50;
+  spawnTea(): void {
+    // Generate possible tea spawn positions
+    const possiblePositions: { x: number; y: number }[] = [];
+    
+    // Add platform positions
+    this.platformData.forEach((platform) => {
+      possiblePositions.push({
+        x: platform.x,
+        y: platform.y - 30,
+      });
+    });
+    
+    // Add ground positions
+    for (let x = 300; x < LEVEL_WIDTH - 300; x += 300) {
+      const isClear = !this.platformData.some((p) => Math.abs(p.x - x) < 100);
+      if (isClear) {
+        possiblePositions.push({
+          x,
+          y: GROUND_Y - 50,
+        });
+      }
     }
-
-    const tea = this.teas.create(teaX, teaY, "tea") as Phaser.Physics.Arcade.Sprite;
+    
+    // Pick a random position using seeded RNG
+    if (possiblePositions.length === 0) {
+      // Fallback to center of level
+      possiblePositions.push({ x: LEVEL_WIDTH / 2, y: GROUND_Y - 50 });
+    }
+    
+    const teaIndex = Math.floor(this.rng.random() * possiblePositions.length);
+    const teaPos = possiblePositions[teaIndex];
+    
+    const tea = this.teas.create(teaPos.x, teaPos.y, "tea") as Phaser.Physics.Arcade.Sprite;
     (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     tea.setScale(0.3);
     this.tweens.add({
@@ -423,75 +454,61 @@ export class GameScene extends Phaser.Scene {
       repeat: -1,
       ease: "Sine.easeInOut",
     });
-
-    // Enemies - place on ground between platforms
-    this.spawnEnemies();
   }
 
   spawnSweets(): void {
+    const SWEET_COUNT = 5; // Exactly 5 sweets per level
     const safeJumpHeight = MAX_JUMP_HEIGHT * 0.85;
 
-    // Place sweets on platforms
-    this.platformData.forEach((platform, index) => {
-      // 70% chance to place a sweet on each platform
-      if (Math.random() < 0.7) {
-        const sweet = this.sweets.create(platform.x, platform.y - 30, "chebakia") as Phaser.Physics.Arcade.Sprite;
-        (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-        this.tweens.add({
-          targets: sweet,
-          y: sweet.y - 5,
-          duration: 500,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
-        });
-      }
+    // Generate all possible sweet spawn positions
+    const possiblePositions: { x: number; y: number }[] = [];
+
+    // Add platform positions
+    this.platformData.forEach((platform) => {
+      possiblePositions.push({
+        x: platform.x,
+        y: platform.y - 30,
+      });
     });
 
-    // Place some sweets in jump arcs between platforms (collectible mid-air)
+    // Add jump arc positions between platforms
     for (let i = 0; i < this.platformData.length - 1; i++) {
-      if (Math.random() < 0.5) {
-        const current = this.platformData[i];
-        const next = this.platformData[i + 1];
-        const midX = (current.x + next.x) / 2;
-        // Place at jump apex height from lower platform
-        const lowerY = Math.max(current.y, next.y);
-        const sweetY = lowerY - safeJumpHeight * 0.7;
-
-        const sweet = this.sweets.create(midX, sweetY, "chebakia") as Phaser.Physics.Arcade.Sprite;
-        (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-        this.tweens.add({
-          targets: sweet,
-          y: sweet.y - 5,
-          duration: 500,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
-        });
-      }
+      const current = this.platformData[i];
+      const next = this.platformData[i + 1];
+      const midX = (current.x + next.x) / 2;
+      const lowerY = Math.max(current.y, next.y);
+      const sweetY = lowerY - safeJumpHeight * 0.7;
+      possiblePositions.push({ x: midX, y: sweetY });
     }
 
-    // Place a few ground-level sweets (easy to collect while running)
-    for (let x = 300; x < LEVEL_WIDTH - 200; x += 400 + Math.random() * 200) {
-      // Check if this position is clear of platforms
+    // Add ground positions
+    for (let x = 300; x < LEVEL_WIDTH - 200; x += 300) {
       const isClear = !this.platformData.some((p) => Math.abs(p.x - x) < 100);
-      if (isClear && Math.random() < 0.6) {
-        const sweet = this.sweets.create(
+      if (isClear) {
+        possiblePositions.push({
           x,
-          GROUND_Y - safeJumpHeight * 0.5,
-          "chebakia",
-        ) as Phaser.Physics.Arcade.Sprite;
-        (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-        this.tweens.add({
-          targets: sweet,
-          y: sweet.y - 5,
-          duration: 500,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
+          y: GROUND_Y - safeJumpHeight * 0.5,
         });
       }
     }
+
+    // Shuffle positions using seeded RNG and pick exactly SWEET_COUNT
+    this.rng.shuffle(possiblePositions);
+    const selectedPositions = possiblePositions.slice(0, SWEET_COUNT);
+
+    // Create sweets at selected positions
+    selectedPositions.forEach((pos) => {
+      const sweet = this.sweets.create(pos.x, pos.y, "chebakia") as Phaser.Physics.Arcade.Sprite;
+      (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+      this.tweens.add({
+        targets: sweet,
+        y: sweet.y - 5,
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    });
   }
 
   spawnEnemies(): void {
