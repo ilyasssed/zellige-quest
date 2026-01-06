@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { JUMP_VELOCITY, SANDAL_SPEED } from '../config';
+import { JUMP_VELOCITY, SANDAL_SPEED, PLAYER_SPEED } from '../config';
 
 interface GameState {
   score: number;
@@ -7,8 +7,21 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
+interface PlatformData {
+  x: number;
+  y: number;
+  width: number;
+}
+
 const LEVEL_WIDTH = 2000;
 const LEVEL_HEIGHT = 400;
+
+// Jump physics constants
+const PLAYER_GRAVITY = 1400; // 800 world + 600 player
+const MAX_JUMP_HEIGHT = Math.abs(JUMP_VELOCITY * JUMP_VELOCITY) / (2 * PLAYER_GRAVITY); // ~72px
+const JUMP_TIME = (2 * Math.abs(JUMP_VELOCITY)) / PLAYER_GRAVITY; // ~0.64s
+const MAX_HORIZONTAL_JUMP = PLAYER_SPEED * JUMP_TIME; // ~128px
+const GROUND_Y = LEVEL_HEIGHT - 32; // Ground level for player feet
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -37,6 +50,8 @@ export class GameScene extends Phaser.Scene {
   private isGameOver = false;
   private playerSpeed = 200;
   private soundtrack?: Phaser.Sound.BaseSound;
+  
+  private platformData: PlatformData[] = [];
 
   constructor() {
     super({ key: 'GameScene' });
@@ -155,76 +170,178 @@ export class GameScene extends Phaser.Scene {
   }
 
   createLevel(): void {
-    // Platforms spread across the level
-    const platformPositions = [
-      { x: 250, y: LEVEL_HEIGHT - 100 },
-      { x: 450, y: LEVEL_HEIGHT - 150 },
-      { x: 650, y: LEVEL_HEIGHT - 100 },
-      { x: 850, y: LEVEL_HEIGHT - 180 },
-      { x: 1050, y: LEVEL_HEIGHT - 120 },
-      { x: 1250, y: LEVEL_HEIGHT - 160 },
-      { x: 1450, y: LEVEL_HEIGHT - 100 },
-      { x: 1650, y: LEVEL_HEIGHT - 140 },
-      { x: 1850, y: LEVEL_HEIGHT - 100 },
-    ];
-
-    platformPositions.forEach(pos => {
-      const platform = this.platforms.create(pos.x, pos.y, 'platform') as Phaser.Physics.Arcade.Sprite;
-      platform.refreshBody();
+    // Generate platforms procedurally based on jump physics
+    this.platformData = this.generatePlatforms();
+    
+    // Create platform sprites with varying widths
+    this.platformData.forEach(data => {
+      // Create multiple platform tiles for wider platforms
+      const tileCount = Math.ceil(data.width / 64);
+      for (let i = 0; i < tileCount; i++) {
+        const platform = this.platforms.create(
+          data.x + (i * 64) - ((tileCount - 1) * 32), 
+          data.y, 
+          'platform'
+        ) as Phaser.Physics.Arcade.Sprite;
+        platform.refreshBody();
+      }
     });
   }
 
-  spawnLevelObjects(): void {
-    // Sweets spread across level
-    const sweetPositions = [
-      { x: 250, y: LEVEL_HEIGHT - 130 },
-      { x: 450, y: LEVEL_HEIGHT - 180 },
-      { x: 600, y: LEVEL_HEIGHT - 80 },
-      { x: 850, y: LEVEL_HEIGHT - 210 },
-      { x: 1000, y: LEVEL_HEIGHT - 80 },
-      { x: 1250, y: LEVEL_HEIGHT - 190 },
-      { x: 1400, y: LEVEL_HEIGHT - 80 },
-      { x: 1650, y: LEVEL_HEIGHT - 170 },
-      { x: 1800, y: LEVEL_HEIGHT - 80 },
-    ];
+  generatePlatforms(): PlatformData[] {
+    const platforms: PlatformData[] = [];
+    const safeJumpHeight = MAX_JUMP_HEIGHT * 0.85; // Use 85% of max for safety margin
+    const safeHorizontalJump = MAX_HORIZONTAL_JUMP * 0.9; // 90% horizontal margin
+    
+    let currentX = 200; // Start position
+    let currentY = GROUND_Y; // Start from ground level
+    
+    while (currentX < LEVEL_WIDTH - 200) {
+      // Random horizontal gap (within jump range)
+      const horizontalGap = 80 + Math.random() * (safeHorizontalJump - 80);
+      currentX += horizontalGap;
+      
+      if (currentX >= LEVEL_WIDTH - 200) break;
+      
+      // Determine if we can go up, stay level, or must go down
+      // Platform should be reachable from ground OR from previous platform
+      const minY = GROUND_Y - safeJumpHeight; // Highest reachable from ground
+      
+      // Vary the height - can be at ground jump level or stepped from previous
+      let newY: number;
+      const rand = Math.random();
+      
+      if (rand < 0.4) {
+        // Jump height from ground level
+        newY = GROUND_Y - (20 + Math.random() * (safeJumpHeight - 20));
+      } else if (rand < 0.7 && platforms.length > 0) {
+        // Step up from previous platform (if previous was low enough)
+        const prevPlatform = platforms[platforms.length - 1];
+        const maxStepUp = prevPlatform.y - safeJumpHeight;
+        newY = Math.max(minY, prevPlatform.y - (20 + Math.random() * safeJumpHeight * 0.7));
+      } else {
+        // Lower platform or ground level jump
+        newY = GROUND_Y - (30 + Math.random() * 40);
+      }
+      
+      // Ensure platform is always reachable from ground
+      newY = Math.max(newY, minY);
+      newY = Math.min(newY, GROUND_Y - 40); // At least 40px above ground
+      
+      // Random width (1-3 tiles wide)
+      const width = 64 * (1 + Math.floor(Math.random() * 3));
+      
+      platforms.push({ x: currentX, y: newY, width });
+      currentY = newY;
+    }
+    
+    return platforms;
+  }
 
-    sweetPositions.forEach(pos => {
-      const sweet = this.sweets.create(pos.x, pos.y, 'chebakia') as Phaser.Physics.Arcade.Sprite;
-      (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+  spawnLevelObjects(): void {
+    // Spawn sweets on reachable locations
+    this.spawnSweets();
+    
+    // Tea power-up - place on a mid-level platform
+    const midPlatform = this.platformData[Math.floor(this.platformData.length / 2)];
+    if (midPlatform) {
+      const tea = this.teas.create(midPlatform.x, midPlatform.y - 30, 'tea') as Phaser.Physics.Arcade.Sprite;
+      (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+      tea.setScale(1.2);
       this.tweens.add({
-        targets: sweet,
-        y: sweet.y - 5,
-        duration: 500,
+        targets: tea,
+        y: tea.y - 10,
+        alpha: 0.8,
+        duration: 600,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
+    }
+
+    // Enemies - place on ground between platforms
+    this.spawnEnemies();
+  }
+
+  spawnSweets(): void {
+    const safeJumpHeight = MAX_JUMP_HEIGHT * 0.85;
+    
+    // Place sweets on platforms
+    this.platformData.forEach((platform, index) => {
+      // 70% chance to place a sweet on each platform
+      if (Math.random() < 0.7) {
+        const sweet = this.sweets.create(platform.x, platform.y - 30, 'chebakia') as Phaser.Physics.Arcade.Sprite;
+        (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+        this.tweens.add({
+          targets: sweet,
+          y: sweet.y - 5,
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
     });
+    
+    // Place some sweets in jump arcs between platforms (collectible mid-air)
+    for (let i = 0; i < this.platformData.length - 1; i++) {
+      if (Math.random() < 0.5) {
+        const current = this.platformData[i];
+        const next = this.platformData[i + 1];
+        const midX = (current.x + next.x) / 2;
+        // Place at jump apex height from lower platform
+        const lowerY = Math.max(current.y, next.y);
+        const sweetY = lowerY - safeJumpHeight * 0.7;
+        
+        const sweet = this.sweets.create(midX, sweetY, 'chebakia') as Phaser.Physics.Arcade.Sprite;
+        (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+        this.tweens.add({
+          targets: sweet,
+          y: sweet.y - 5,
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+    }
+    
+    // Place a few ground-level sweets (easy to collect while running)
+    for (let x = 300; x < LEVEL_WIDTH - 200; x += 400 + Math.random() * 200) {
+      // Check if this position is clear of platforms
+      const isClear = !this.platformData.some(p => Math.abs(p.x - x) < 100);
+      if (isClear && Math.random() < 0.6) {
+        const sweet = this.sweets.create(x, GROUND_Y - safeJumpHeight * 0.5, 'chebakia') as Phaser.Physics.Arcade.Sprite;
+        (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+        this.tweens.add({
+          targets: sweet,
+          y: sweet.y - 5,
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+    }
+  }
 
-    // Tea power-up
-    const tea = this.teas.create(1050, LEVEL_HEIGHT - 150, 'tea') as Phaser.Physics.Arcade.Sprite;
-    (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-    tea.setScale(1.2);
-    this.tweens.add({
-      targets: tea,
-      y: tea.y - 10,
-      alpha: 0.8,
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Enemies - move in one direction until hitting obstacle
-    const enemyPositions = [
-      { x: 400, y: LEVEL_HEIGHT - 80, direction: 1 },
-      { x: 800, y: LEVEL_HEIGHT - 80, direction: -1 },
-      { x: 1200, y: LEVEL_HEIGHT - 80, direction: 1 },
-      { x: 1600, y: LEVEL_HEIGHT - 80, direction: -1 },
-    ];
-
+  spawnEnemies(): void {
+    // Place enemies on the ground in gaps between platforms
+    const enemyPositions: { x: number; direction: number }[] = [];
+    
+    for (let i = 0; i < this.platformData.length - 1; i++) {
+      const current = this.platformData[i];
+      const next = this.platformData[i + 1];
+      const gapX = (current.x + next.x) / 2;
+      
+      // Only spawn in larger gaps
+      if (next.x - current.x > 150 && Math.random() < 0.6) {
+        enemyPositions.push({ x: gapX, direction: Math.random() < 0.5 ? 1 : -1 });
+      }
+    }
+    
     enemyPositions.forEach(pos => {
-      const enemy = this.enemies.create(pos.x, pos.y, 'cockroach') as Phaser.Physics.Arcade.Sprite;
+      const enemy = this.enemies.create(pos.x, GROUND_Y - 20, 'cockroach') as Phaser.Physics.Arcade.Sprite;
       enemy.setSize(26, 18);
       enemy.setOffset(3, 5);
       const body = enemy.body as Phaser.Physics.Arcade.Body;
