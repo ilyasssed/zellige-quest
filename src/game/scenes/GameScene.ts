@@ -130,127 +130,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   createBackground(): void {
-    const bg = this.add.graphics();
+    const bgTexture = this.textures.get('background');
+    const bgWidth = bgTexture.getSourceImage().width;
+    const bgHeight = bgTexture.getSourceImage().height;
     
-    // Colors from reference image
-    const crimson = 0x8B1538;
-    const teal = 0x1A6B6B;
-    const gold = 0xD4A525;
-    const darkGold = 0xB8860B;
+    // Calculate how many tiles needed to cover LEVEL_WIDTH
+    const tilesNeeded = Math.ceil(LEVEL_WIDTH / bgWidth) + 1;
     
-    // Fill base with dark color
-    bg.fillStyle(0x1A1A1A);
-    bg.fillRect(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
-    
-    // Draw alternating crimson/teal panels with arches
-    const panelWidth = 300;
-    const numPanels = Math.ceil(LEVEL_WIDTH / panelWidth) + 1;
-    
-    for (let p = 0; p < numPanels; p++) {
-      const panelX = p * panelWidth;
-      const isRed = p % 2 === 0;
-      const mainColor = isRed ? crimson : teal;
-      const patternColor = isRed ? 0x6B1028 : 0x145858;
-      
-      // Main panel fill
-      bg.fillStyle(mainColor);
-      bg.fillRect(panelX, 0, panelWidth, LEVEL_HEIGHT);
-      
-      // Draw zellige cross pattern
-      const tileSize = 20;
-      for (let y = 0; y < LEVEL_HEIGHT; y += tileSize) {
-        for (let x = panelX; x < panelX + panelWidth; x += tileSize) {
-          // Cross pattern
-          bg.fillStyle(patternColor);
-          bg.fillRect(x + tileSize / 2 - 2, y, 4, tileSize);
-          bg.fillRect(x, y + tileSize / 2 - 2, tileSize, 4);
-          
-          // Gold accent at intersections
-          bg.fillStyle(gold);
-          bg.fillCircle(x + tileSize / 2, y + tileSize / 2, 2);
-        }
-      }
-      
-      // Golden border strips on edges
-      bg.fillStyle(gold);
-      bg.fillRect(panelX, 0, 6, LEVEL_HEIGHT);
-      bg.fillRect(panelX + panelWidth - 6, 0, 6, LEVEL_HEIGHT);
-      
-      // Draw Moroccan arch in center of each panel
-      const archCenterX = panelX + panelWidth / 2;
-      const archBottom = LEVEL_HEIGHT - 80;
-      const archWidth = 100;
-      const archHeight = 180;
-      
-      // Arch outer frame (gold)
-      bg.fillStyle(gold);
-      // Left pillar
-      bg.fillRect(archCenterX - archWidth / 2 - 8, archBottom - archHeight + 60, 16, archHeight - 60);
-      // Right pillar
-      bg.fillRect(archCenterX + archWidth / 2 - 8, archBottom - archHeight + 60, 16, archHeight - 60);
-      
-      // Arch top (pointed Moroccan style)
-      bg.lineStyle(8, gold);
-      bg.beginPath();
-      bg.moveTo(archCenterX - archWidth / 2, archBottom - archHeight + 60);
-      // Left curve
-      bg.lineTo(archCenterX - archWidth / 2, archBottom - archHeight + 30);
-      bg.lineTo(archCenterX - archWidth / 4, archBottom - archHeight + 10);
-      // Peak
-      bg.lineTo(archCenterX, archBottom - archHeight - 20);
-      // Right curve
-      bg.lineTo(archCenterX + archWidth / 4, archBottom - archHeight + 10);
-      bg.lineTo(archCenterX + archWidth / 2, archBottom - archHeight + 30);
-      bg.lineTo(archCenterX + archWidth / 2, archBottom - archHeight + 60);
-      bg.strokePath();
-      
-      // Fill arch interior with darker color
-      bg.fillStyle(isRed ? 0x5A0F25 : 0x0F4545);
-      bg.beginPath();
-      bg.moveTo(archCenterX - archWidth / 2 + 8, archBottom);
-      bg.lineTo(archCenterX - archWidth / 2 + 8, archBottom - archHeight + 60);
-      bg.lineTo(archCenterX - archWidth / 4, archBottom - archHeight + 15);
-      bg.lineTo(archCenterX, archBottom - archHeight - 15);
-      bg.lineTo(archCenterX + archWidth / 4, archBottom - archHeight + 15);
-      bg.lineTo(archCenterX + archWidth / 2 - 8, archBottom - archHeight + 60);
-      bg.lineTo(archCenterX + archWidth / 2 - 8, archBottom);
-      bg.closePath();
-      bg.fillPath();
-      
-      // Decorative gold flower/star in arch center
-      bg.fillStyle(gold);
-      const starY = archBottom - archHeight + 80;
-      // Draw 4-pointed star
-      bg.fillRect(archCenterX - 8, starY - 2, 16, 4);
-      bg.fillRect(archCenterX - 2, starY - 8, 4, 16);
-      bg.fillCircle(archCenterX, starY, 4);
-      
-      // Top decorative lantern shapes
-      const lanternY = 30;
-      bg.fillStyle(gold);
-      // Base
-      bg.fillRect(archCenterX - 8, lanternY, 16, 20);
-      // Top
-      bg.fillTriangle(
-        archCenterX - 10, lanternY,
-        archCenterX + 10, lanternY,
-        archCenterX, lanternY - 15
-      );
-    }
-    
-    // Floating lanterns with glow
-    for (let i = 0; i < Math.ceil(LEVEL_WIDTH / 200); i++) {
-      const lantern = this.add.image(100 + i * 200, 60 + Math.sin(i) * 15, 'lantern');
-      lantern.setScale(0.6);
-      lantern.setAlpha(0.9);
-      this.tweens.add({
-        targets: lantern,
-        y: lantern.y - 8,
-        duration: 2000 + i * 200,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
+    // Place background images side by side, scaled to fit level height
+    for (let i = 0; i < tilesNeeded; i++) {
+      const bg = this.add.image(i * bgWidth, 0, 'background');
+      bg.setOrigin(0, 0);
+      bg.setDisplaySize(bgWidth, LEVEL_HEIGHT);
     }
   }
 
