@@ -178,11 +178,26 @@ export class GameScene extends Phaser.Scene {
     this.soundButton.setSize(40, 40);
     this.soundButton.setInteractive({ useHandCursor: true });
     
+    this.soundButton.on('pointerover', () => {
+      this.tweens.add({ targets: this.soundButton, scale: 1.1, duration: 100 });
+    });
+    
+    this.soundButton.on('pointerout', () => {
+      this.tweens.add({ targets: this.soundButton, scale: 1, duration: 100 });
+    });
+    
     this.soundButton.on('pointerdown', () => {
       this.sound.mute = !this.sound.mute;
       const icon = this.soundButton?.getByName('soundIcon') as Phaser.GameObjects.Text;
       if (icon) {
         icon.setText(this.sound.mute ? '🔇' : '🔊');
+        // Add press animation
+        this.tweens.add({
+          targets: this.soundButton,
+          scale: 0.9,
+          duration: 50,
+          yoyo: true,
+        });
       }
     });
 

@@ -190,9 +190,24 @@ export class MenuScene extends Phaser.Scene {
     soundButton.setSize(40, 40);
     soundButton.setInteractive({ useHandCursor: true });
     
+    soundButton.on('pointerover', () => {
+      this.tweens.add({ targets: soundButton, scale: 1.1, duration: 100 });
+    });
+    
+    soundButton.on('pointerout', () => {
+      this.tweens.add({ targets: soundButton, scale: 1, duration: 100 });
+    });
+    
     soundButton.on('pointerdown', () => {
       this.sound.mute = !this.sound.mute;
       soundIcon.setText(this.sound.mute ? '🔇' : '🔊');
+      // Add press animation
+      this.tweens.add({
+        targets: soundButton,
+        scale: 0.9,
+        duration: 50,
+        yoyo: true,
+      });
     });
   }
 
