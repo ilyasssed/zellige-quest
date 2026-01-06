@@ -7,6 +7,9 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
+const LEVEL_WIDTH = 2000;
+const LEVEL_HEIGHT = 400;
+
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
@@ -33,31 +36,33 @@ export class GameScene extends Phaser.Scene {
   private isInvulnerable = false;
   private isGameOver = false;
   private playerSpeed = 200;
+  private soundtrack?: Phaser.Sound.BaseSound;
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
   create(): void {
-    const { width, height } = this.cameras.main;
-
     // Reset game state
     this.gameState = { score: 0, lives: 3, hasPowerUp: false };
     this.isInvulnerable = false;
     this.canThrow = true;
     this.isGameOver = false;
 
-    // Create static background
-    this.createBackground(width, height);
+    // Set world bounds for horizontal level
+    this.physics.world.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
 
-    // Create ground (static)
+    // Create background
+    this.createBackground();
+
+    // Create ground (full level width)
     this.ground = this.physics.add.staticGroup();
-    for (let x = 0; x < width + 64; x += 64) {
-      const tile = this.ground.create(x, height - 32, 'ground') as Phaser.Physics.Arcade.Sprite;
+    for (let x = 0; x < LEVEL_WIDTH + 64; x += 64) {
+      const tile = this.ground.create(x, LEVEL_HEIGHT - 32, 'ground') as Phaser.Physics.Arcade.Sprite;
       tile.refreshBody();
     }
 
-    // Create platforms (static)
+    // Create platforms
     this.platforms = this.physics.add.staticGroup();
     this.createLevel();
 
@@ -67,19 +72,25 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Create player
-    this.player = this.physics.add.sprite(100, height - 150, 'player');
+    // Create player with PNG sprite
+    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 150, 'playerSprite');
+    this.player.setScale(0.08);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
-    this.player.setSize(20, 40);
-    this.player.setOffset(6, 8);
+    this.player.setSize(400, 500);
+    this.player.setOffset(100, 50);
     this.player.setGravityY(600);
+
+    // Camera follows player horizontally
+    this.cameras.main.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
+    this.cameras.main.startFollow(this.player, true, 0.1, 0);
+    this.cameras.main.setDeadzone(200, LEVEL_HEIGHT);
 
     // Collisions
     this.physics.add.collider(this.player, this.ground);
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.enemies, this.ground);
-    this.physics.add.collider(this.enemies, this.platforms);
+    this.physics.add.collider(this.enemies, this.platforms, this.enemyHitPlatform, undefined, this);
 
     // Overlaps
     this.physics.add.overlap(this.player, this.sweets, this.collectSweet, undefined, this);
@@ -87,42 +98,52 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemies, this.handleEnemyCollision, undefined, this);
     this.physics.add.overlap(this.sandals, this.enemies, this.sandalHitEnemy, undefined, this);
 
-    // Input - Arrow keys for movement, Space for jump
+    // Input
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.X);
 
-    // HUD
+    // HUD (fixed to camera)
     this.createHUD();
 
-    // Spawn collectibles and enemies
+    // Spawn level objects
     this.spawnLevelObjects();
+
+    // Play soundtrack
+    if (this.sound.get('soundtrack')) {
+      this.soundtrack = this.sound.get('soundtrack');
+    } else {
+      this.soundtrack = this.sound.add('soundtrack', { loop: true, volume: 0.5 });
+    }
+    if (!this.soundtrack.isPlaying) {
+      this.soundtrack.play();
+    }
 
     // Fade in
     this.cameras.main.fadeIn(500);
   }
 
-  createBackground(width: number, height: number): void {
-    // Sky gradient
+  createBackground(): void {
+    // Sky gradient background (larger for scrolling)
     const bg = this.add.graphics();
     bg.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xFDF5E6, 0xFDF5E6, 1);
-    bg.fillRect(0, 0, width, height);
+    bg.fillRect(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
 
-    // Background arches
-    for (let i = 0; i < 4; i++) {
-      const arch = this.add.image(100 + i * 220, height - 180, 'arch');
-      arch.setScale(1.8);
+    // Background arches spread across level
+    for (let i = 0; i < Math.ceil(LEVEL_WIDTH / 300); i++) {
+      const arch = this.add.image(150 + i * 300, LEVEL_HEIGHT - 150, 'arch');
+      arch.setScale(1.5);
       arch.setAlpha(0.2);
     }
 
     // Floating lanterns
-    for (let i = 0; i < 5; i++) {
-      const lantern = this.add.image(80 + i * 170, 50 + Math.sin(i) * 20, 'lantern');
-      lantern.setScale(0.6);
+    for (let i = 0; i < Math.ceil(LEVEL_WIDTH / 200); i++) {
+      const lantern = this.add.image(100 + i * 200, 40 + Math.sin(i) * 20, 'lantern');
+      lantern.setScale(0.5);
       lantern.setAlpha(0.6);
       this.tweens.add({
         targets: lantern,
         y: lantern.y - 10,
-        duration: 2000 + i * 300,
+        duration: 2000 + i * 200,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
@@ -131,17 +152,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   createLevel(): void {
-    const { width, height } = this.cameras.main;
-
-    // Create platforms at various positions
+    // Platforms spread across the level
     const platformPositions = [
-      { x: 200, y: height - 130 },
-      { x: 350, y: height - 180 },
-      { x: 500, y: height - 130 },
-      { x: 650, y: height - 200 },
-      { x: 150, y: height - 250 },
-      { x: 450, y: height - 280 },
-      { x: 600, y: height - 100 },
+      { x: 250, y: LEVEL_HEIGHT - 100 },
+      { x: 450, y: LEVEL_HEIGHT - 150 },
+      { x: 650, y: LEVEL_HEIGHT - 100 },
+      { x: 850, y: LEVEL_HEIGHT - 180 },
+      { x: 1050, y: LEVEL_HEIGHT - 120 },
+      { x: 1250, y: LEVEL_HEIGHT - 160 },
+      { x: 1450, y: LEVEL_HEIGHT - 100 },
+      { x: 1650, y: LEVEL_HEIGHT - 140 },
+      { x: 1850, y: LEVEL_HEIGHT - 100 },
     ];
 
     platformPositions.forEach(pos => {
@@ -151,17 +172,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnLevelObjects(): void {
-    const { width, height } = this.cameras.main;
-
-    // Spawn sweets on platforms and ground
+    // Sweets spread across level
     const sweetPositions = [
-      { x: 200, y: height - 160 },
-      { x: 350, y: height - 210 },
-      { x: 500, y: height - 160 },
-      { x: 650, y: height - 230 },
-      { x: 150, y: height - 280 },
-      { x: 300, y: height - 80 },
-      { x: 550, y: height - 80 },
+      { x: 250, y: LEVEL_HEIGHT - 130 },
+      { x: 450, y: LEVEL_HEIGHT - 180 },
+      { x: 600, y: LEVEL_HEIGHT - 80 },
+      { x: 850, y: LEVEL_HEIGHT - 210 },
+      { x: 1000, y: LEVEL_HEIGHT - 80 },
+      { x: 1250, y: LEVEL_HEIGHT - 190 },
+      { x: 1400, y: LEVEL_HEIGHT - 80 },
+      { x: 1650, y: LEVEL_HEIGHT - 170 },
+      { x: 1800, y: LEVEL_HEIGHT - 80 },
     ];
 
     sweetPositions.forEach(pos => {
@@ -177,8 +198,8 @@ export class GameScene extends Phaser.Scene {
       });
     });
 
-    // Spawn tea power-up
-    const tea = this.teas.create(450, height - 310, 'tea') as Phaser.Physics.Arcade.Sprite;
+    // Tea power-up
+    const tea = this.teas.create(1050, LEVEL_HEIGHT - 150, 'tea') as Phaser.Physics.Arcade.Sprite;
     (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     tea.setScale(1.2);
     this.tweens.add({
@@ -191,48 +212,61 @@ export class GameScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    // Spawn enemies (cockroaches) that patrol
+    // Enemies - move in one direction until hitting obstacle
     const enemyPositions = [
-      { x: 350, y: height - 80, range: 100 },
-      { x: 600, y: height - 80, range: 80 },
-      { x: 200, y: height - 160, range: 60 },
+      { x: 400, y: LEVEL_HEIGHT - 80, direction: 1 },
+      { x: 800, y: LEVEL_HEIGHT - 80, direction: -1 },
+      { x: 1200, y: LEVEL_HEIGHT - 80, direction: 1 },
+      { x: 1600, y: LEVEL_HEIGHT - 80, direction: -1 },
     ];
 
     enemyPositions.forEach(pos => {
       const enemy = this.enemies.create(pos.x, pos.y, 'cockroach') as Phaser.Physics.Arcade.Sprite;
-      enemy.setSize(28, 20);
-      enemy.setOffset(2, 6);
-      (enemy.body as Phaser.Physics.Arcade.Body).setAllowGravity(true);
-
-      // Patrol behavior
-      this.tweens.add({
-        targets: enemy,
-        x: enemy.x + pos.range,
-        duration: 2000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Linear',
-        onYoyo: () => enemy.setFlipX(true),
-        onRepeat: () => enemy.setFlipX(false),
-      });
+      enemy.setSize(26, 18);
+      enemy.setOffset(3, 5);
+      const body = enemy.body as Phaser.Physics.Arcade.Body;
+      body.setVelocityX(80 * pos.direction);
+      body.setBounce(0, 0);
+      enemy.setData('direction', pos.direction);
+      if (pos.direction < 0) enemy.setFlipX(true);
     });
+  }
+
+  enemyHitPlatform(
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+  ): void {
+    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
+    const body = enemySprite.body as Phaser.Physics.Arcade.Body;
+    
+    // Reverse direction when hitting platform from side
+    if (body.touching.left || body.touching.right) {
+      const newDirection = body.touching.left ? 1 : -1;
+      body.setVelocityX(80 * newDirection);
+      enemySprite.setFlipX(newDirection < 0);
+      enemySprite.setData('direction', newDirection);
+    }
   }
 
   createHUD(): void {
     const hudBg = this.add.graphics();
     hudBg.fillStyle(0x000000, 0.4);
     hudBg.fillRoundedRect(10, 10, 180, 50, 8);
+    hudBg.setScrollFactor(0);
 
     this.scoreText = this.add.text(20, 18, 'Score: 0', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#FFD700',
     });
+    this.scoreText.setScrollFactor(0);
 
     this.livesContainer = this.add.container(20, 42);
+    this.livesContainer.setScrollFactor(0);
     this.updateLivesDisplay();
 
     this.powerUpIndicator = this.add.container(680, 30);
+    this.powerUpIndicator.setScrollFactor(0);
     const powerUpBg = this.add.graphics();
     powerUpBg.fillStyle(0x228B22, 0.9);
     powerUpBg.fillRoundedRect(-60, -15, 120, 30, 8);
@@ -260,7 +294,6 @@ export class GameScene extends Phaser.Scene {
     sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
     const sweetSprite = sweet as Phaser.Physics.Arcade.Sprite;
-
     this.tweens.add({
       targets: sweetSprite,
       scale: 0,
@@ -269,23 +302,8 @@ export class GameScene extends Phaser.Scene {
       duration: 200,
       onComplete: () => sweetSprite.destroy(),
     });
-
     this.gameState.score += 100;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
-
-    const popup = this.add.text(sweetSprite.x, sweetSprite.y, '+100', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
-      color: '#FFD700',
-    });
-    popup.setOrigin(0.5);
-    this.tweens.add({
-      targets: popup,
-      y: popup.y - 40,
-      alpha: 0,
-      duration: 800,
-      onComplete: () => popup.destroy(),
-    });
   }
 
   collectTea(
@@ -294,29 +312,12 @@ export class GameScene extends Phaser.Scene {
   ): void {
     const teaSprite = tea as Phaser.Physics.Arcade.Sprite;
     teaSprite.destroy();
-
     this.gameState.hasPowerUp = true;
     this.powerUpIndicator.setVisible(true);
     this.player.setTint(0x32CD32);
-
     this.cameras.main.flash(200, 50, 205, 50);
-
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
-
-    const popup = this.add.text(teaSprite.x, teaSprite.y, 'POWER UP!', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '14px',
-      color: '#32CD32',
-    });
-    popup.setOrigin(0.5);
-    this.tweens.add({
-      targets: popup,
-      y: popup.y - 50,
-      alpha: 0,
-      duration: 1000,
-      onComplete: () => popup.destroy(),
-    });
   }
 
   handleEnemyCollision(
@@ -328,19 +329,15 @@ export class GameScene extends Phaser.Scene {
     const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
     const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    // Check if player is jumping on enemy (from above)
     if (playerBody.velocity.y > 0 && playerBody.bottom < enemyBody.center.y) {
       this.defeatEnemy(enemySprite);
-      playerBody.setVelocityY(-300); // Bounce off
+      playerBody.setVelocityY(-300);
     } else if (!this.isInvulnerable) {
       this.takeDamage();
     }
   }
 
   defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
-    // Stop patrol tween
-    this.tweens.killTweensOf(enemy);
-    
     this.tweens.add({
       targets: enemy,
       scaleY: 0.2,
@@ -348,42 +345,24 @@ export class GameScene extends Phaser.Scene {
       duration: 300,
       onComplete: () => enemy.destroy(),
     });
-
     this.gameState.score += 200;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
-
-    const popup = this.add.text(enemy.x, enemy.y, '+200', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
-      color: '#FF6347',
-    });
-    popup.setOrigin(0.5);
-    this.tweens.add({
-      targets: popup,
-      y: popup.y - 40,
-      alpha: 0,
-      duration: 800,
-      onComplete: () => popup.destroy(),
-    });
   }
 
   throwSandal(): void {
     if (!this.gameState.hasPowerUp || !this.canThrow) return;
-
     this.canThrow = false;
 
-    // Throw in the direction player is facing
     const direction = this.player.flipX ? -1 : 1;
     const sandal = this.sandals.create(
-      this.player.x + (30 * direction), 
-      this.player.y, 
+      this.player.x + (30 * direction),
+      this.player.y,
       'sandal'
     ) as Phaser.Physics.Arcade.Sprite;
-    
+
     const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
     sandalBody.setAllowGravity(false);
     sandalBody.setVelocityX(SANDAL_SPEED * direction);
-
     if (direction < 0) sandal.setFlipX(true);
 
     this.tweens.add({
@@ -408,7 +387,6 @@ export class GameScene extends Phaser.Scene {
   ): void {
     const sandalSprite = sandal as Phaser.Physics.Arcade.Sprite;
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
-
     sandalSprite.destroy();
     this.defeatEnemy(enemySprite);
   }
@@ -454,7 +432,7 @@ export class GameScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const onGround = body.touching.down || body.blocked.down;
 
-    // Horizontal movement with arrow keys
+    // Horizontal movement
     if (this.cursors.left.isDown) {
       body.setVelocityX(-this.playerSpeed);
       this.player.setFlipX(true);
@@ -465,28 +443,38 @@ export class GameScene extends Phaser.Scene {
       body.setVelocityX(0);
     }
 
-    // Jump with space or up arrow
+    // Jump
     if ((this.cursors.space.isDown || this.cursors.up.isDown) && onGround) {
       body.setVelocityY(JUMP_VELOCITY);
     }
 
-    // Throw sandal with X key when powered up
+    // Throw sandal
     if (Phaser.Input.Keyboard.JustDown(this.attackKey) && this.gameState.hasPowerUp) {
       this.throwSandal();
     }
 
-    // Clean up off-screen sandals
-    this.sandals.getChildren().forEach((child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      if (sprite.x < -50 || sprite.x > this.cameras.main.width + 50) {
-        sprite.destroy();
+    // Update enemy movement (reverse at world bounds)
+    this.enemies.getChildren().forEach((child) => {
+      const enemy = child as Phaser.Physics.Arcade.Sprite;
+      const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+      
+      if (enemy.x <= 50 || enemy.x >= LEVEL_WIDTH - 50) {
+        const newDirection = enemy.x <= 50 ? 1 : -1;
+        enemyBody.setVelocityX(80 * newDirection);
+        enemy.setFlipX(newDirection < 0);
       }
     });
 
-    // Check win condition - all sweets collected
-    if (this.sweets.countActive() === 0 && this.enemies.countActive() === 0) {
+    // Check win
+    if (this.player.x >= LEVEL_WIDTH - 100) {
       this.gameState.score += 1000;
       this.gameOver();
     }
+
+    // Cleanup off-screen sandals
+    this.sandals.getChildren().forEach((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (sprite.x < 0 || sprite.x > LEVEL_WIDTH) sprite.destroy();
+    });
   }
 }
