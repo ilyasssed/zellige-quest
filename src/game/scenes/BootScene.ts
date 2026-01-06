@@ -37,25 +37,32 @@ export class BootScene extends Phaser.Scene {
       loadingText.destroy();
     });
 
-    // Load external assets - player sprites
-    this.load.setPath('/');
-    this.load.image('playerStatic', 'images/player-static.png');
-    this.load.image('playerMoving1', 'images/player-moving1.png');
-    this.load.image('playerMoving2', 'images/player-moving2.png');
-    this.load.image('playerMoving3', 'images/player-moving3.png');
-    this.load.image('playerMoving4', 'images/player-moving4.png');
-    this.load.image('playerMoving5', 'images/player-moving5.png');
-    this.load.image('playerMoving6', 'images/player-moving6.png');
-    this.load.image('playerMoving7', 'images/player-moving7.png');
-    this.load.image('playerMoving8', 'images/player-moving8.png');
-    this.load.image('playerMoving9', 'images/player-moving9.png');
-    this.load.audio('soundtrack', 'audio/soundtrack.mp3');
+    // Add error handler for debugging
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      console.error('Failed to load:', file.key, file.url);
+    });
 
-    // Generate all game graphics
+    // Load external assets - player sprites
+    this.load.image('playerStatic', '/images/player-static.png');
+    this.load.image('playerMoving1', '/images/player-moving1.png');
+    this.load.image('playerMoving2', '/images/player-moving2.png');
+    this.load.image('playerMoving3', '/images/player-moving3.png');
+    this.load.image('playerMoving4', '/images/player-moving4.png');
+    this.load.image('playerMoving5', '/images/player-moving5.png');
+    this.load.image('playerMoving6', '/images/player-moving6.png');
+    this.load.image('playerMoving7', '/images/player-moving7.png');
+    this.load.image('playerMoving8', '/images/player-moving8.png');
+    this.load.image('playerMoving9', '/images/player-moving9.png');
+    this.load.audio('soundtrack', '/audio/soundtrack.mp3');
+
+    // Generate all game graphics (including fallback player)
     this.generateGameAssets();
   }
 
   generateGameAssets(): void {
+    // Generate fallback player sprites first (will be overwritten if PNGs load)
+    this.generatePlayerSprites();
+    
     this.generateChebakiaSprite();
     this.generateTeaSprite();
     this.generateSandalSprite();
@@ -65,6 +72,57 @@ export class BootScene extends Phaser.Scene {
     this.generateLanternSprite();
     this.generateArchSprite();
     this.generateHeartSprite();
+  }
+
+  generatePlayerSprites(): void {
+    // Generate a simple character sprite as fallback
+    const size = 64;
+    
+    // Static pose
+    if (!this.textures.exists('playerStatic')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      // Body
+      graphics.fillStyle(0x4A90D9);
+      graphics.fillRoundedRect(16, 20, 32, 36, 4);
+      // Head
+      graphics.fillStyle(0xFFDBB4);
+      graphics.fillCircle(32, 12, 12);
+      // Eyes
+      graphics.fillStyle(0x333333);
+      graphics.fillCircle(28, 10, 2);
+      graphics.fillCircle(36, 10, 2);
+      // Legs
+      graphics.fillStyle(0x2C5282);
+      graphics.fillRect(20, 56, 8, 8);
+      graphics.fillRect(36, 56, 8, 8);
+      graphics.generateTexture('playerStatic', size, size);
+      graphics.destroy();
+    }
+
+    // Walking frames (slightly different leg positions)
+    for (let i = 1; i <= 9; i++) {
+      const key = `playerMoving${i}`;
+      if (!this.textures.exists(key)) {
+        const graphics = this.make.graphics({ x: 0, y: 0 });
+        const legOffset = Math.sin((i / 9) * Math.PI * 2) * 4;
+        // Body
+        graphics.fillStyle(0x4A90D9);
+        graphics.fillRoundedRect(16, 20, 32, 36, 4);
+        // Head
+        graphics.fillStyle(0xFFDBB4);
+        graphics.fillCircle(32, 12, 12);
+        // Eyes
+        graphics.fillStyle(0x333333);
+        graphics.fillCircle(28, 10, 2);
+        graphics.fillCircle(36, 10, 2);
+        // Legs (animated)
+        graphics.fillStyle(0x2C5282);
+        graphics.fillRect(20 + legOffset, 56, 8, 8);
+        graphics.fillRect(36 - legOffset, 56, 8, 8);
+        graphics.generateTexture(key, size, size);
+        graphics.destroy();
+      }
+    }
   }
 
   generateChebakiaSprite(): void {
