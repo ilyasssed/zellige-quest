@@ -101,7 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.sandals = this.physics.add.group();
 
     // Create player with PNG sprite (static by default)
-    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 32, "player-static");
+    this.player = this.physics.add.sprite(100, GROUND_Y, "player-static");
     this.player.setOrigin(0.5, 1); // Anchor at bottom-center so feet stay on ground
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
