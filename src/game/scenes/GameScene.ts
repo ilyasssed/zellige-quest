@@ -73,13 +73,15 @@ export class GameScene extends Phaser.Scene {
     this.sandals = this.physics.add.group();
 
     // Create player with PNG sprite (static by default)
-    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 32, 'player-static');
+    // Ground tiles are 64px tall and positioned with origin (0.5, 0.5) at y = LEVEL_HEIGHT - 16,
+    // so the top surface is at (LEVEL_HEIGHT - 16) - 32 = LEVEL_HEIGHT - 48.
+    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 48, 'player-static');
     this.player.setOrigin(0.5, 1); // Anchor at bottom-center so feet stay on ground
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setGravityY(600);
-    
+
     // Adjust physics body to align with bottom of sprite
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     const spriteHeight = this.player.height;
