@@ -134,14 +134,18 @@ export class GameScene extends Phaser.Scene {
     const bgWidth = bgTexture.getSourceImage().width;
     const bgHeight = bgTexture.getSourceImage().height;
     
-    // Calculate how many tiles needed to cover LEVEL_WIDTH
-    const tilesNeeded = Math.ceil(LEVEL_WIDTH / bgWidth) + 1;
+    // Scale to fit level height while maintaining aspect ratio
+    const scale = LEVEL_HEIGHT / bgHeight;
+    const scaledWidth = bgWidth * scale;
     
-    // Place background images side by side, scaled to fit level height
+    // Calculate how many tiles needed to cover LEVEL_WIDTH
+    const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
+    
+    // Place background images side by side
     for (let i = 0; i < tilesNeeded; i++) {
-      const bg = this.add.image(i * bgWidth, 0, 'background');
+      const bg = this.add.image(i * scaledWidth, 0, 'background');
       bg.setOrigin(0, 0);
-      bg.setDisplaySize(bgWidth, LEVEL_HEIGHT);
+      bg.setScale(scale);
     }
   }
 
