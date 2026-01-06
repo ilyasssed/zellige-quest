@@ -1,16 +1,11 @@
 import Phaser from 'phaser';
 import { JUMP_VELOCITY, SANDAL_SPEED, PLAYER_SPEED } from '../config';
+import { LevelGenerator, PlatformData } from '../LevelGenerator';
 
 interface GameState {
   score: number;
   lives: number;
   hasPowerUp: boolean;
-}
-
-interface PlatformData {
-  x: number;
-  y: number;
-  width: number;
 }
 
 const LEVEL_WIDTH = 2000;
@@ -363,93 +358,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   generatePlatforms(): PlatformData[] {
-    const platforms: PlatformData[] = [];
-    const MIN_SAME_LEVEL_SPACING = STEP * 20; // 20 steps minimum between same level
-    const MIN_ADJACENT_LEVEL_DIFF = STEP * 4; // 4 steps min for adjacent levels
-    const MAX_ADJACENT_LEVEL_DIFF = STEP * 6; // 6 steps max for adjacent levels
+    const generator = new LevelGenerator({
+      levelWidth: LEVEL_WIDTH,
+      groundY: GROUND_Y,
+      levelYs: [LEVEL_1_Y, LEVEL_2_Y, LEVEL_3_Y],
+      platformHeight: PLATFORM_HEIGHT,
+      step: STEP,
+      maxJumpHeight: MAX_JUMP_HEIGHT,
+      maxHorizontalJump: MAX_HORIZONTAL_JUMP,
+    });
     
-    // Level Y positions
-    const levelYs = [LEVEL_1_Y, LEVEL_2_Y, LEVEL_3_Y];
-    
-    // Track last X position for each level
-    const lastXByLevel: number[] = [-MIN_SAME_LEVEL_SPACING, -MIN_SAME_LEVEL_SPACING, -MIN_SAME_LEVEL_SPACING];
-    
-    let currentX = 150;
-    
-    while (currentX < LEVEL_WIDTH - 150) {
-      // Pick a random level (1, 2, or 3 -> index 0, 1, 2)
-      const level = Math.floor(Math.random() * 3);
-      const levelY = levelYs[level];
-      
-      // Calculate minimum X based on constraints
-      let minX = currentX + 60; // Base minimum spacing
-      let maxX = LEVEL_WIDTH - 150; // Default max
-      
-      // Same level constraint: must be at least 20 steps from last on same level
-      const sameLevelMinX = lastXByLevel[level] + MIN_SAME_LEVEL_SPACING;
-      minX = Math.max(minX, sameLevelMinX);
-      
-      // Adjacent level constraint: must be between 4 and 6 steps from an adjacent level platform
-      const adjacentLevels = level === 0 ? [1] : level === 2 ? [1] : [0, 2];
-      
-      // For level 2 and 3, we need a "stepping stone" from below
-      let hasNearbyAdjacent = false;
-      for (const adjLevel of adjacentLevels) {
-        const adjLastX = lastXByLevel[adjLevel];
-        // Check if there's an adjacent platform we can position relative to
-        if (adjLastX > 0) {
-          const adjMinX = adjLastX + MIN_ADJACENT_LEVEL_DIFF;
-          const adjMaxX = adjLastX + MAX_ADJACENT_LEVEL_DIFF;
-          
-          // Check if valid range exists
-          if (adjMinX <= LEVEL_WIDTH - 150 && adjMaxX >= minX) {
-            hasNearbyAdjacent = true;
-            // Position this platform between 4-6 steps from the adjacent
-            minX = Math.max(minX, adjMinX);
-            maxX = Math.min(maxX, adjMaxX);
-            break;
-          }
-        }
-      }
-      
-      // For higher levels, skip if no nearby adjacent platform to jump from
-      if (level > 0 && !hasNearbyAdjacent) {
-        // Try placing a lower level platform first
-        const lowerLevel = level - 1;
-        const lowerY = levelYs[lowerLevel];
-        const lowerMinX = Math.max(currentX + 60, lastXByLevel[lowerLevel] + MIN_SAME_LEVEL_SPACING);
-        
-        if (lowerMinX < LEVEL_WIDTH - 150) {
-          const width = 64 * (1 + Math.floor(Math.random() * 3));
-          platforms.push({ x: lowerMinX, y: lowerY, width });
-          lastXByLevel[lowerLevel] = lowerMinX;
-          currentX = lowerMinX + 40;
-        } else {
-          currentX += 80;
-        }
-        continue;
-      }
-      
-      if (minX >= LEVEL_WIDTH - 150 || minX > maxX) {
-        currentX += 80;
-        continue;
-      }
-      
-      // Random X position within valid range
-      const finalX = minX + Math.random() * (maxX - minX);
-      
-      // Random width (1-3 tiles wide)
-      const width = 64 * (1 + Math.floor(Math.random() * 3));
-      
-      platforms.push({ x: finalX, y: levelY, width });
-      lastXByLevel[level] = finalX;
-      currentX = finalX + 40 + Math.random() * 60;
-    }
-    
-    // Sort by X position for proper spawning
-    platforms.sort((a, b) => a.x - b.x);
-    
-    return platforms;
+    return generator.generate();
   }
 
   spawnLevelObjects(): void {
