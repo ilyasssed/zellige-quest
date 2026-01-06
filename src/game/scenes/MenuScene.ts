@@ -11,7 +11,11 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.cameras.main;
 
-    // Tiled background image
+    // Add yellow sky behind the background
+    const sky = this.add.rectangle(width / 2, height / 2, width, height, 0xffd700);
+    sky.setOrigin(0.5, 0.5);
+
+    // Tiled background image with 70% opacity
     const bgTexture = this.textures.get('background');
     const bgWidth = bgTexture.getSourceImage().width;
     const bgHeight = bgTexture.getSourceImage().height;
@@ -24,7 +28,6 @@ export class MenuScene extends Phaser.Scene {
       bg.setOrigin(0, 0);
       bg.setScale(scale);
       bg.setAlpha(0.7);
-      bg.setTint(0xfff5d4);
     }
 
     // Decorative lanterns from the game
