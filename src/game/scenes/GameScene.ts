@@ -141,13 +141,16 @@ export class GameScene extends Phaser.Scene {
     // Calculate how many tiles needed to cover LEVEL_WIDTH
     const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
     
-    // Place background images side by side with warm yellow filter
+    // Add yellow sky behind the background
+    const sky = this.add.rectangle(LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2, LEVEL_WIDTH, LEVEL_HEIGHT, 0xffd700);
+    sky.setOrigin(0.5, 0.5);
+    
+    // Place background images side by side with 70% opacity
     for (let i = 0; i < tilesNeeded; i++) {
       const bg = this.add.image(i * scaledWidth, 0, 'background');
       bg.setOrigin(0, 0);
       bg.setScale(scale);
-      bg.setAlpha(0.75);
-      bg.setTint(0xfff5d4);
+      bg.setAlpha(0.7);
     }
   }
 
