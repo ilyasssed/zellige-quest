@@ -397,7 +397,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnSweets();
 
     // Tea power-up - place on a mid-level platform, or fallback to ground
-    const midPlatform = this.platformData[Math.floor(this.platformData.length)];
+    const midPlatform = this.platformData[Math.floor(this.platformData.length + 2)];
 
     let teaX: number;
     let teaY: number;
