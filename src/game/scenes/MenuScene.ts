@@ -23,8 +23,8 @@ export class MenuScene extends Phaser.Scene {
       const bg = this.add.image(i * scaledWidth, 0, 'background');
       bg.setOrigin(0, 0);
       bg.setScale(scale);
-      bg.setAlpha(0.6);
-      bg.setTint(0xaaaaaa);
+      bg.setAlpha(0.85);
+      bg.setTint(0xfff5d4);
     }
 
     // Decorative lanterns from the game
