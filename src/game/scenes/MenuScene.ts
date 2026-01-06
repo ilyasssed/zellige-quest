@@ -11,8 +11,21 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.cameras.main;
 
-    // Solid background color
-    this.cameras.main.setBackgroundColor('#2d1b4e');
+    // Tiled background image
+    const bgTexture = this.textures.get('background');
+    const bgWidth = bgTexture.getSourceImage().width;
+    const bgHeight = bgTexture.getSourceImage().height;
+    const scale = height / bgHeight;
+    const scaledWidth = bgWidth * scale;
+    const tilesNeeded = Math.ceil(width / scaledWidth) + 1;
+    
+    for (let i = 0; i < tilesNeeded; i++) {
+      const bg = this.add.image(i * scaledWidth, 0, 'background');
+      bg.setOrigin(0, 0);
+      bg.setScale(scale);
+      bg.setAlpha(0.6);
+      bg.setTint(0xaaaaaa);
+    }
 
     // Decorative lanterns from the game
     for (let i = 0; i < 5; i++) {
@@ -35,15 +48,6 @@ export class MenuScene extends Phaser.Scene {
       tile.setScale(0.6);
       tile.setAlpha(0.4);
     }
-
-    // Decorative arches in background
-    const arch1 = this.add.image(100, height - 80, 'arch');
-    arch1.setScale(0.8);
-    arch1.setAlpha(0.25);
-    
-    const arch2 = this.add.image(width - 100, height - 80, 'arch');
-    arch2.setScale(0.8);
-    arch2.setAlpha(0.25);
 
     // Floating collectibles as decoration
     const sweet1 = this.add.image(80, 120, 'chebakia');
