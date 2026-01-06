@@ -72,13 +72,13 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Create player with PNG sprite
+    // Create player with PNG sprite - elevated by half obstacle size (~16px)
     this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 100, 'playerSprite');
-    this.player.setScale(0.06);
+    this.player.setScale(0.05);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
-    this.player.setSize(500, 600);
-    this.player.setOffset(50, 20);
+    this.player.setSize(600, 700);
+    this.player.setOffset(50, 50);
     this.player.setGravityY(600);
 
     // Camera follows player horizontally
