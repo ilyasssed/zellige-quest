@@ -12,7 +12,7 @@ export class MenuScene extends Phaser.Scene {
     const { width, height } = this.cameras.main;
 
     // Add yellow sky behind the background
-    const sky = this.add.rectangle(width / 2, height / 2, width, height, 0xffd700);
+    const sky = this.add.rectangle(width / 2, height / 2, width, height, 0xfdcb6e);
     sky.setOrigin(0.5, 0.5);
 
     // Tiled background image with 70% opacity

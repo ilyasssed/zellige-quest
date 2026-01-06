@@ -142,7 +142,7 @@ export class GameScene extends Phaser.Scene {
     const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
     
     // Add yellow sky behind the background
-    const sky = this.add.rectangle(LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2, LEVEL_WIDTH, LEVEL_HEIGHT, 0xffd700);
+    const sky = this.add.rectangle(LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2, LEVEL_WIDTH, LEVEL_HEIGHT, 0xfdcb6e);
     sky.setOrigin(0.5, 0.5);
     
     // Place background images side by side with 70% opacity
