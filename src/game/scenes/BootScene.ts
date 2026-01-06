@@ -266,95 +266,26 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Build a uniform spritesheet from the 9 walk frames with bottom-aligned feet.
-    // (This does not modify the original PNGs; it generates a runtime spritesheet texture.)
-    this.buildPlayerWalkSpritesheet();
-
-    // Create player walk animation (from the aligned spritesheet)
+    // Create player walk animation using individual frame textures
     if (!this.anims.exists('player-walk')) {
       this.anims.create({
         key: 'player-walk',
-        frames: this.anims.generateFrameNumbers('player-walk-sheet', { start: 0, end: 8 }),
+        frames: [
+          { key: 'player-moving1' },
+          { key: 'player-moving2' },
+          { key: 'player-moving3' },
+          { key: 'player-moving4' },
+          { key: 'player-moving5' },
+          { key: 'player-moving6' },
+          { key: 'player-moving7' },
+          { key: 'player-moving8' },
+          { key: 'player-moving9' },
+        ],
         frameRate: 12,
         repeat: -1,
       });
     }
 
     this.scene.start('MenuScene');
-  }
-
-  private buildPlayerWalkSpritesheet(): void {
-    // If already built (hot reload / scene restart), don't rebuild.
-    if (this.textures.exists('player-walk-sheet')) return;
-
-    const frameKeys = Array.from({ length: 9 }, (_, i) => `player-moving${i + 1}`);
-
-    // First pass: find max frame size + global baseline (lowest opaque pixel).
-    let frameW = 0;
-    let frameH = 0;
-    let globalBaseline = 0;
-
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-    if (!tempCtx) return;
-
-    const frameInfo = frameKeys.map((key) => {
-      const tex = this.textures.get(key);
-      const img = tex.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
-      const w = (img as HTMLImageElement).naturalWidth ?? (img as HTMLCanvasElement).width;
-      const h = (img as HTMLImageElement).naturalHeight ?? (img as HTMLCanvasElement).height;
-
-      frameW = Math.max(frameW, w);
-      frameH = Math.max(frameH, h);
-
-      tempCanvas.width = w;
-      tempCanvas.height = h;
-      tempCtx.clearRect(0, 0, w, h);
-      tempCtx.drawImage(img, 0, 0);
-
-      const data = tempCtx.getImageData(0, 0, w, h).data;
-      let bottomOpaque = 0;
-      for (let y = h - 1; y >= 0; y--) {
-        let hasOpaque = false;
-        for (let x = 0; x < w; x++) {
-          const a = data[(y * w + x) * 4 + 3];
-          if (a > 0) {
-            hasOpaque = true;
-            break;
-          }
-        }
-        if (hasOpaque) {
-          bottomOpaque = y;
-          break;
-        }
-      }
-
-      globalBaseline = Math.max(globalBaseline, bottomOpaque);
-      return { key, img, w, h, bottomOpaque };
-    });
-
-    // Ensure the spritesheet cell is tall enough so baseline maps to the bottom edge.
-    frameH = Math.max(frameH, globalBaseline + 1);
-
-    const sheetCanvas = document.createElement('canvas');
-    sheetCanvas.width = frameW * frameInfo.length;
-    sheetCanvas.height = frameH;
-
-    const sheetCtx = sheetCanvas.getContext('2d');
-    if (!sheetCtx) return;
-    sheetCtx.clearRect(0, 0, sheetCanvas.width, sheetCanvas.height);
-
-    // Second pass: draw each frame centered horizontally, shifted vertically so feet align.
-    frameInfo.forEach((f, idx) => {
-      const x = idx * frameW + Math.floor((frameW - f.w) / 2);
-      const y = globalBaseline - f.bottomOpaque;
-      sheetCtx.drawImage(f.img, x, y);
-    });
-
-    const sheetTexture = this.textures.addCanvas('player-walk-sheet-canvas', sheetCanvas);
-    this.textures.addSpriteSheet('player-walk-sheet', sheetTexture, {
-      frameWidth: frameW,
-      frameHeight: frameH,
-    });
   }
 }
