@@ -44,6 +44,7 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.audio('soundtrack', '/audio/soundtrack.mp3');
     this.load.image('background', '/images/background.png');
+    this.load.image('tea', '/images/tea.png');
 
     // Generate all game graphics
     this.generateGameAssets();
@@ -51,7 +52,6 @@ export class BootScene extends Phaser.Scene {
 
   generateGameAssets(): void {
     this.generateChebakiaSprite();
-    this.generateTeaSprite();
     this.generateSandalSprite();
     this.generateCockroachSprite();
     this.generatePlatformSprite();
@@ -74,24 +74,6 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(0xDAA520);
     graphics.fillCircle(12, 12, 3);
     graphics.generateTexture('chebakia', 24, 24);
-    graphics.destroy();
-  }
-
-  generateTeaSprite(): void {
-    const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0xD4A574);
-    graphics.fillRect(8, 4, 16, 4);
-    graphics.fillStyle(0xFFD700);
-    graphics.fillRect(6, 8, 20, 20);
-    graphics.fillStyle(0x228B22);
-    graphics.fillRect(8, 12, 16, 14);
-    graphics.fillStyle(0x32CD32);
-    graphics.fillCircle(16, 14, 3);
-    graphics.fillCircle(12, 16, 2);
-    graphics.fillStyle(0xFFFFFF);
-    graphics.fillRect(12, 2, 2, 4);
-    graphics.fillRect(18, 0, 2, 4);
-    graphics.generateTexture('tea', 32, 32);
     graphics.destroy();
   }
 
