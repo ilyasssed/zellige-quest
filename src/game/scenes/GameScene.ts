@@ -80,6 +80,8 @@ export class GameScene extends Phaser.Scene {
     this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 120, 'playerStatic');
     this.currentTexture = 'playerStatic';
     this.player.setScale(0.15);
+    this.player.setAlpha(1);
+    this.player.clearTint();
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setSize(180, 220);
@@ -319,7 +321,6 @@ export class GameScene extends Phaser.Scene {
     teaSprite.destroy();
     this.gameState.hasPowerUp = true;
     this.powerUpIndicator.setVisible(true);
-    this.player.setTint(0x32CD32);
     this.cameras.main.flash(200, 50, 205, 50);
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
