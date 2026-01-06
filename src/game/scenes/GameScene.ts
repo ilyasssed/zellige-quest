@@ -62,7 +62,7 @@ export class GameScene extends Phaser.Scene {
   private pauseMenu?: Phaser.GameObjects.Container;
   private soundButton?: Phaser.GameObjects.Container;
   private pauseButton?: Phaser.GameObjects.Container;
-  
+
   // Seeded random for reproducible spawns - change GAME_SEED in SeededRandom.ts for different patterns
   private rng: SeededRandom = new SeededRandom(GAME_SEED);
 
@@ -391,7 +391,7 @@ export class GameScene extends Phaser.Scene {
       step: STEP,
       maxJumpHeight: MAX_JUMP_HEIGHT,
       maxHorizontalJump: MAX_HORIZONTAL_JUMP,
-      minPlatforms: 5,  // Level 1: 5-10 random obstacles
+      minPlatforms: 5, // Level 1: 5-10 random obstacles
       maxPlatforms: 10,
       seed: GAME_SEED,
     });
@@ -413,15 +413,15 @@ export class GameScene extends Phaser.Scene {
   spawnTea(): void {
     // Generate possible tea spawn positions
     const possiblePositions: { x: number; y: number }[] = [];
-    
+
     // Add platform positions
     this.platformData.forEach((platform) => {
       possiblePositions.push({
         x: platform.x,
-        y: platform.y - 30,
+        y: platform.y - 50,
       });
     });
-    
+
     // Add ground positions
     for (let x = 300; x < LEVEL_WIDTH - 300; x += 300) {
       const isClear = !this.platformData.some((p) => Math.abs(p.x - x) < 100);
@@ -432,16 +432,16 @@ export class GameScene extends Phaser.Scene {
         });
       }
     }
-    
+
     // Pick a random position using seeded RNG
     if (possiblePositions.length === 0) {
       // Fallback to center of level
       possiblePositions.push({ x: LEVEL_WIDTH / 2, y: GROUND_Y - 50 });
     }
-    
+
     const teaIndex = Math.floor(this.rng.random() * possiblePositions.length);
     const teaPos = possiblePositions[teaIndex];
-    
+
     const tea = this.teas.create(teaPos.x, teaPos.y, "tea") as Phaser.Physics.Arcade.Sprite;
     (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     tea.setScale(0.3);
@@ -467,7 +467,7 @@ export class GameScene extends Phaser.Scene {
     this.platformData.forEach((platform) => {
       possiblePositions.push({
         x: platform.x,
-        y: platform.y - 30,
+        y: platform.y - 50,
       });
     });
 
