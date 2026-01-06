@@ -28,10 +28,10 @@ const MAX_HORIZONTAL_JUMP = 200 * JUMP_TIME; // ~128px (using PLAYER_SPEED value
 const PLATFORM_HEIGHT = 32; // Height of a platform tile
 const STEP = 20; // Base unit for horizontal spacing (in pixels)
 
-// Level heights (from ground)
+// Level heights (from ground) - obstacles stack based on their size
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9; // Jump height from ground
-const LEVEL_2_Y = LEVEL_1_Y - PLATFORM_HEIGHT - MAX_JUMP_HEIGHT * 0.9; // Jump from Level 1
-const LEVEL_3_Y = LEVEL_2_Y - PLATFORM_HEIGHT - MAX_JUMP_HEIGHT * 0.9; // Jump from Level 2
+const LEVEL_2_Y = LEVEL_1_Y - (2 * PLATFORM_HEIGHT); // Level 1 + 2 obstacle heights
+const LEVEL_3_Y = LEVEL_2_Y - (2 * PLATFORM_HEIGHT); // Level 2 + 2 obstacle heights
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
