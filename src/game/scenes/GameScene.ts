@@ -397,11 +397,11 @@ export class GameScene extends Phaser.Scene {
     this.spawnSweets();
 
     // Tea power-up - place on a mid-level platform, or fallback to ground
-    const midPlatform = this.platformData[Math.floor(this.platformData.length / 2)];
-    
+    const midPlatform = this.platformData[Math.floor(this.platformData.length)];
+
     let teaX: number;
     let teaY: number;
-    
+
     if (midPlatform) {
       teaX = midPlatform.x;
       teaY = midPlatform.y - 20;
@@ -410,7 +410,7 @@ export class GameScene extends Phaser.Scene {
       teaX = LEVEL_WIDTH / 2;
       teaY = GROUND_Y - 50;
     }
-    
+
     const tea = this.teas.create(teaX, teaY, "tea") as Phaser.Physics.Arcade.Sprite;
     (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     tea.setScale(0.3);
