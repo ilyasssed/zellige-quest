@@ -5,6 +5,8 @@
  * Uses graph connectivity to validate platform placement.
  */
 
+import { SeededRandom } from "./SeededRandom";
+
 export interface PlatformData {
   x: number;
   y: number;
@@ -28,6 +30,9 @@ interface LevelConfig {
   step: number;
   maxJumpHeight: number;
   maxHorizontalJump: number;
+  minPlatforms?: number;
+  maxPlatforms?: number;
+  seed?: number;
 }
 
 // Spacing constants
@@ -39,9 +44,11 @@ export class LevelGenerator {
   private config: LevelConfig;
   private platforms: PlatformData[] = [];
   private nodes: PathNode[] = [];
+  private rng: SeededRandom;
 
   constructor(config: LevelConfig) {
     this.config = config;
+    this.rng = new SeededRandom(config.seed ?? 12345);
   }
 
   generate(): PlatformData[] {
@@ -80,6 +87,12 @@ export class LevelGenerator {
     const minAdjacentSpacing = step * MIN_ADJACENT_LEVEL_SPACING_STEPS;
     const maxAdjacentSpacing = step * MAX_ADJACENT_LEVEL_SPACING_STEPS;
 
+    // Target number of platforms (obstacles)
+    const targetPlatforms = this.rng.randomInt(
+      this.config.minPlatforms ?? 5,
+      this.config.maxPlatforms ?? 10
+    );
+
     // Track last platform X for each level
     const lastXByLevel: number[] = [-minSameLevelSpacing, -minSameLevelSpacing, -minSameLevelSpacing];
     
@@ -91,7 +104,7 @@ export class LevelGenerator {
     let attempts = 0;
     const maxAttempts = 500;
 
-    while (currentX < levelWidth - 150 && attempts < maxAttempts) {
+    while (currentX < levelWidth - 150 && attempts < maxAttempts && this.platforms.length < targetPlatforms) {
       attempts++;
       
       // Determine which level to place next based on reachability
@@ -114,11 +127,11 @@ export class LevelGenerator {
         continue;
       }
 
-      // Random X within valid range
-      const finalX = minX + Math.random() * (maxX - minX);
+      // Random X within valid range (using seeded RNG)
+      const finalX = minX + this.rng.random() * (maxX - minX);
       
       // Random width (1-3 tiles)
-      const width = 64 * (1 + Math.floor(Math.random() * 3));
+      const width = 64 * (1 + Math.floor(this.rng.random() * 3));
       
       // Check if placement maintains safe path
       const platform: PlatformData = { x: finalX, y: levelY, width, level };
@@ -143,7 +156,7 @@ export class LevelGenerator {
         }
         slices.get(sliceIndex)!.push(level);
         
-        currentX = finalX + 40 + Math.random() * step * 3;
+        currentX = finalX + 40 + this.rng.random() * step * 3;
       } else {
         currentX += step * 2;
       }
@@ -194,7 +207,7 @@ export class LevelGenerator {
     if (weightedLevels.length === 0) return validLevels[0];
     
     const totalWeight = weightedLevels.reduce((sum, l) => sum + weights[l], 0);
-    let random = Math.random() * totalWeight;
+    let random = this.rng.random() * totalWeight;
     
     for (const level of weightedLevels) {
       random -= weights[level];
