@@ -138,38 +138,82 @@ export class BootScene extends Phaser.Scene {
 
   generatePlatformSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0x1E8A88);
+    
+    // Orange brick pattern like reference
+    const brickColor = 0xCC6B2C;
+    const brickDark = 0xA85520;
+    const mortarColor = 0x8B4513;
+    
+    // Fill mortar/grout background
+    graphics.fillStyle(mortarColor);
     graphics.fillRect(0, 0, 64, 32);
-    graphics.fillStyle(0xFFFFFF);
-    graphics.fillRect(0, 0, 32, 16);
-    graphics.fillRect(32, 16, 32, 16);
-    graphics.fillStyle(0xD4A574);
-    graphics.fillRect(2, 2, 12, 12);
-    graphics.fillRect(18, 2, 12, 12);
-    graphics.fillRect(34, 18, 12, 12);
-    graphics.fillRect(50, 18, 12, 12);
-    graphics.lineStyle(2, 0x8B2942);
-    graphics.strokeRect(0, 0, 64, 32);
+    
+    // Draw brick pattern - two rows
+    const brickWidth = 28;
+    const brickHeight = 12;
+    const gap = 3;
+    
+    // Row 1 - full bricks
+    for (let x = 0; x < 64; x += brickWidth + gap) {
+      graphics.fillStyle(brickColor);
+      graphics.fillRoundedRect(x + 2, 2, brickWidth, brickHeight, 2);
+      // Highlight
+      graphics.fillStyle(0xE07830);
+      graphics.fillRect(x + 4, 4, brickWidth - 4, 3);
+      // Shadow
+      graphics.fillStyle(brickDark);
+      graphics.fillRect(x + 4, brickHeight - 2, brickWidth - 4, 2);
+    }
+    
+    // Row 2 - offset bricks
+    for (let x = -14; x < 64; x += brickWidth + gap) {
+      graphics.fillStyle(brickColor);
+      graphics.fillRoundedRect(x + 2, 17, brickWidth, brickHeight, 2);
+      // Highlight
+      graphics.fillStyle(0xE07830);
+      graphics.fillRect(x + 4, 19, brickWidth - 4, 3);
+      // Shadow
+      graphics.fillStyle(brickDark);
+      graphics.fillRect(x + 4, 17 + brickHeight - 2, brickWidth - 4, 2);
+    }
+    
     graphics.generateTexture('platform', 64, 32);
     graphics.destroy();
   }
 
   generateGroundSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0x8B4513);
+    
+    // Orange brick pattern like reference
+    const brickColor = 0xCC6B2C;
+    const brickDark = 0xA85520;
+    const mortarColor = 0x8B4513;
+    
+    // Fill mortar/grout background
+    graphics.fillStyle(mortarColor);
     graphics.fillRect(0, 0, 64, 64);
-    graphics.fillStyle(0xD4A574);
-    graphics.fillRect(4, 4, 24, 24);
-    graphics.fillRect(36, 4, 24, 24);
-    graphics.fillRect(4, 36, 24, 24);
-    graphics.fillRect(36, 36, 24, 24);
-    graphics.fillStyle(0x1E8A88);
-    graphics.fillRect(8, 8, 16, 16);
-    graphics.fillRect(40, 8, 16, 16);
-    graphics.fillRect(8, 40, 16, 16);
-    graphics.fillRect(40, 40, 16, 16);
-    graphics.fillStyle(0xD4A574);
-    graphics.fillRect(0, 0, 64, 4);
+    
+    // Draw brick pattern - 4 rows
+    const brickWidth = 28;
+    const brickHeight = 12;
+    const gap = 3;
+    
+    for (let row = 0; row < 4; row++) {
+      const yPos = row * (brickHeight + gap) + 2;
+      const offset = row % 2 === 0 ? 0 : -14;
+      
+      for (let x = offset; x < 64; x += brickWidth + gap) {
+        graphics.fillStyle(brickColor);
+        graphics.fillRoundedRect(x + 2, yPos, brickWidth, brickHeight, 2);
+        // Highlight
+        graphics.fillStyle(0xE07830);
+        graphics.fillRect(x + 4, yPos + 2, brickWidth - 4, 3);
+        // Shadow
+        graphics.fillStyle(brickDark);
+        graphics.fillRect(x + 4, yPos + brickHeight - 2, brickWidth - 4, 2);
+      }
+    }
+    
     graphics.generateTexture('ground', 64, 64);
     graphics.destroy();
   }
