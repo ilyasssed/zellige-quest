@@ -397,7 +397,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnSweets();
 
     // Tea power-up - place on a mid-level platform
-    const midPlatform = this.platformData[Math.floor(this.platformData.length)];
+    const midPlatform = this.platformData[Math.floor(this.platformData.length / 2)];
     if (midPlatform) {
       const tea = this.teas.create(midPlatform.x, midPlatform.y - 20, "tea") as Phaser.Physics.Arcade.Sprite;
       (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
