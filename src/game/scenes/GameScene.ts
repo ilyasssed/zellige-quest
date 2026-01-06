@@ -399,9 +399,9 @@ export class GameScene extends Phaser.Scene {
     // Tea power-up - place on a mid-level platform
     const midPlatform = this.platformData[Math.floor(this.platformData.length / 2)];
     if (midPlatform) {
-      const tea = this.teas.create(midPlatform.x, midPlatform.y - 30, 'tea') as Phaser.Physics.Arcade.Sprite;
+      const tea = this.teas.create(midPlatform.x, midPlatform.y - 20, 'tea') as Phaser.Physics.Arcade.Sprite;
       (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-      tea.setScale(1.2);
+      tea.setScale(0.04); // ~1/4 of player size (player is 0.15 scale)
       this.tweens.add({
         targets: tea,
         y: tea.y - 10,
