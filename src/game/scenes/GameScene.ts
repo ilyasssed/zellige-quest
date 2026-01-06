@@ -80,13 +80,10 @@ export class GameScene extends Phaser.Scene {
     this.player.setBounce(0.1);
     this.player.setGravityY(600);
     
-    // Adjust physics body to align with bottom of sprite
+    // Adjust physics body to match sprite with bottom origin
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    const spriteHeight = this.player.height;
-    const spriteWidth = this.player.width;
-    // Body covers most of sprite, offset from top-left of original texture
-    playerBody.setSize(spriteWidth * 0.6, spriteHeight * 0.9);
-    playerBody.setOffset(spriteWidth * 0.2, spriteHeight * 0.1);
+    playerBody.setSize(180, 220);
+    playerBody.setOffset(20, 10);
 
     // Camera follows player horizontally
     this.cameras.main.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
