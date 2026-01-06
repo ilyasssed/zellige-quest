@@ -180,6 +180,7 @@ export class MenuScene extends Phaser.Scene {
     soundBg.fillStyle(0x000000, 0.6);
     soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
     
+    // Check actual mute state
     const isMuted = this.sound.mute;
     const soundIcon = this.add.text(0, 0, isMuted ? '🔇' : '🔊', {
       fontSize: '20px',
@@ -199,9 +200,14 @@ export class MenuScene extends Phaser.Scene {
     });
     
     soundButton.on('pointerdown', () => {
-      this.sound.mute = !this.sound.mute;
-      soundIcon.setText(this.sound.mute ? '🔇' : '🔊');
-      // Add press animation
+      // Toggle mute state
+      const newMuteState = !this.sound.mute;
+      this.sound.mute = newMuteState;
+      
+      // Update icon immediately
+      soundIcon.setText(newMuteState ? '🔇' : '🔊');
+      
+      // Press animation
       this.tweens.add({
         targets: soundButton,
         scale: 0.9,

@@ -158,7 +158,7 @@ export class GameScene extends Phaser.Scene {
   createControlButtons(): void {
     const camWidth = this.cameras.main.width;
     
-    // Sound toggle button
+    // Sound toggle button - start with sound ON (not muted)
     this.soundButton = this.add.container(camWidth - 90, 30);
     this.soundButton.setScrollFactor(0);
     this.soundButton.setDepth(100);
@@ -167,6 +167,7 @@ export class GameScene extends Phaser.Scene {
     soundBg.fillStyle(0x000000, 0.6);
     soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
     
+    // Check actual mute state
     const isMuted = this.sound.mute;
     const soundIcon = this.add.text(0, 0, isMuted ? '🔇' : '🔊', {
       fontSize: '20px',
@@ -187,18 +188,23 @@ export class GameScene extends Phaser.Scene {
     });
     
     this.soundButton.on('pointerdown', () => {
-      this.sound.mute = !this.sound.mute;
+      // Toggle mute state
+      const newMuteState = !this.sound.mute;
+      this.sound.mute = newMuteState;
+      
+      // Update icon immediately
       const icon = this.soundButton?.getByName('soundIcon') as Phaser.GameObjects.Text;
       if (icon) {
-        icon.setText(this.sound.mute ? '🔇' : '🔊');
-        // Add press animation
-        this.tweens.add({
-          targets: this.soundButton,
-          scale: 0.9,
-          duration: 50,
-          yoyo: true,
-        });
+        icon.setText(newMuteState ? '🔇' : '🔊');
       }
+      
+      // Press animation
+      this.tweens.add({
+        targets: this.soundButton,
+        scale: 0.9,
+        duration: 50,
+        yoyo: true,
+      });
     });
 
     // Pause button
