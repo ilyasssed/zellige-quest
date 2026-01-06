@@ -11,7 +11,7 @@ interface GameState {
 
 const LEVEL_WIDTH = 2000;
 const LEVEL_HEIGHT = 400;
-const GROUND_Y = LEVEL_HEIGHT; // Ground level for player feet
+const GROUND_Y = LEVEL_HEIGHT - 64; // Ground level for player feet
 
 // Jump physics constants (calculated from game config values)
 const PLAYER_GRAVITY = 1400; // 800 world + 600 player
