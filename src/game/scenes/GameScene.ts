@@ -24,6 +24,15 @@ const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYE
 const JUMP_TIME = (2 * JUMP_VELOCITY_VALUE) / PLAYER_GRAVITY; // ~0.64s
 const MAX_HORIZONTAL_JUMP = 200 * JUMP_TIME; // ~128px (using PLAYER_SPEED value)
 
+// Platform height constants
+const PLATFORM_HEIGHT = 32; // Height of a platform tile
+const STEP = 20; // Base unit for horizontal spacing (in pixels)
+
+// Level heights (from ground)
+const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9; // Jump height from ground
+const LEVEL_2_Y = LEVEL_1_Y - PLATFORM_HEIGHT - MAX_JUMP_HEIGHT * 0.9; // Jump from Level 1
+const LEVEL_3_Y = LEVEL_2_Y - PLATFORM_HEIGHT - MAX_JUMP_HEIGHT * 0.9; // Jump from Level 2
+
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
@@ -191,50 +200,81 @@ export class GameScene extends Phaser.Scene {
 
   generatePlatforms(): PlatformData[] {
     const platforms: PlatformData[] = [];
-    const safeJumpHeight = MAX_JUMP_HEIGHT * 0.85; // Use 85% of max for safety margin
-    const safeHorizontalJump = MAX_HORIZONTAL_JUMP * 0.9; // 90% horizontal margin
+    const MIN_SAME_LEVEL_SPACING = STEP * 20; // 20 steps minimum between same level
+    const MAX_ADJACENT_LEVEL_DIFF = STEP * 6; // 6 steps max difference for adjacent levels
     
-    let currentX = 200; // Start position
-    let currentY = GROUND_Y; // Start from ground level
+    // Level Y positions
+    const levelYs = [LEVEL_1_Y, LEVEL_2_Y, LEVEL_3_Y];
     
-    while (currentX < LEVEL_WIDTH - 200) {
-      // Random horizontal gap (within jump range)
-      const horizontalGap = 80 + Math.random() * (safeHorizontalJump - 80);
-      currentX += horizontalGap;
+    // Track last X position for each level
+    const lastXByLevel: number[] = [-MIN_SAME_LEVEL_SPACING, -MIN_SAME_LEVEL_SPACING, -MIN_SAME_LEVEL_SPACING];
+    
+    let currentX = 150;
+    
+    while (currentX < LEVEL_WIDTH - 150) {
+      // Pick a random level (1, 2, or 3 -> index 0, 1, 2)
+      const level = Math.floor(Math.random() * 3);
+      const levelY = levelYs[level];
       
-      if (currentX >= LEVEL_WIDTH - 200) break;
+      // Calculate minimum X based on constraints
+      let minX = currentX + 60; // Base minimum spacing
       
-      // Determine if we can go up, stay level, or must go down
-      // Platform should be reachable from ground OR from previous platform
-      const minY = GROUND_Y - safeJumpHeight; // Highest reachable from ground
+      // Same level constraint: must be at least 20 steps from last on same level
+      const sameLevelMinX = lastXByLevel[level] + MIN_SAME_LEVEL_SPACING;
+      minX = Math.max(minX, sameLevelMinX);
       
-      // Vary the height - can be at ground jump level or stepped from previous
-      let newY: number;
-      const rand = Math.random();
+      // Adjacent level constraint: must be within 6 steps of an adjacent level platform
+      // Check if there's an adjacent level platform we need to be close to
+      const adjacentLevels = level === 0 ? [1] : level === 2 ? [1] : [0, 2];
       
-      if (rand < 0.4) {
-        // Jump height from ground level
-        newY = GROUND_Y - (20 + Math.random() * (safeJumpHeight - 20));
-      } else if (rand < 0.7 && platforms.length > 0) {
-        // Step up from previous platform (if previous was low enough)
-        const prevPlatform = platforms[platforms.length - 1];
-        const maxStepUp = prevPlatform.y - safeJumpHeight;
-        newY = Math.max(minY, prevPlatform.y - (20 + Math.random() * safeJumpHeight * 0.7));
-      } else {
-        // Lower platform or ground level jump
-        newY = GROUND_Y - (30 + Math.random() * 40);
+      // For level 2 and 3, we need a "stepping stone" from below
+      // Find nearest adjacent level platform
+      let hasNearbyAdjacent = false;
+      for (const adjLevel of adjacentLevels) {
+        const adjLastX = lastXByLevel[adjLevel];
+        // Check if there's an adjacent platform within reachable range
+        if (adjLastX > 0 && Math.abs(minX - adjLastX) <= MAX_ADJACENT_LEVEL_DIFF + 100) {
+          hasNearbyAdjacent = true;
+          // Position this platform within 6 steps of the adjacent
+          minX = Math.max(minX, adjLastX - MAX_ADJACENT_LEVEL_DIFF);
+          minX = Math.min(minX, adjLastX + MAX_ADJACENT_LEVEL_DIFF);
+          break;
+        }
       }
       
-      // Ensure platform is always reachable from ground
-      newY = Math.max(newY, minY);
-      newY = Math.min(newY, GROUND_Y - 40); // At least 40px above ground
+      // For higher levels, skip if no nearby adjacent platform to jump from
+      if (level > 0 && !hasNearbyAdjacent) {
+        // Try placing a lower level platform first
+        const lowerLevel = level - 1;
+        const lowerY = levelYs[lowerLevel];
+        const lowerMinX = Math.max(currentX + 60, lastXByLevel[lowerLevel] + MIN_SAME_LEVEL_SPACING);
+        
+        if (lowerMinX < LEVEL_WIDTH - 150) {
+          const width = 64 * (1 + Math.floor(Math.random() * 3));
+          platforms.push({ x: lowerMinX, y: lowerY, width });
+          lastXByLevel[lowerLevel] = lowerMinX;
+          currentX = lowerMinX + 40;
+        } else {
+          currentX += 80;
+        }
+        continue;
+      }
+      
+      if (minX >= LEVEL_WIDTH - 150) {
+        currentX += 80;
+        continue;
+      }
       
       // Random width (1-3 tiles wide)
       const width = 64 * (1 + Math.floor(Math.random() * 3));
       
-      platforms.push({ x: currentX, y: newY, width });
-      currentY = newY;
+      platforms.push({ x: minX, y: levelY, width });
+      lastXByLevel[level] = minX;
+      currentX = minX + 40 + Math.random() * 60;
     }
+    
+    // Sort by X position for proper spawning
+    platforms.sort((a, b) => a.x - b.x);
     
     return platforms;
   }
