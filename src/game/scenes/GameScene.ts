@@ -401,7 +401,7 @@ export class GameScene extends Phaser.Scene {
     if (midPlatform) {
       const tea = this.teas.create(midPlatform.x, midPlatform.y - 20, 'tea') as Phaser.Physics.Arcade.Sprite;
       (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-      tea.setScale(0.15); // Same size as character
+      tea.setScale(0.45); // 3x character size
       this.tweens.add({
         targets: tea,
         y: tea.y - 10,
