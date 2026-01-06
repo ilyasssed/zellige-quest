@@ -11,7 +11,7 @@ interface GameState {
 
 const LEVEL_WIDTH = 2000;
 const LEVEL_HEIGHT = 400;
-const GROUND_Y = LEVEL_HEIGHT - 32; // Ground level for player feet
+const GROUND_Y = LEVEL_HEIGHT - 16; // Ground level for player feet
 
 // Jump physics constants (calculated from game config values)
 const PLAYER_GRAVITY = 1400; // 800 world + 600 player
@@ -115,6 +115,7 @@ export class GameScene extends Phaser.Scene {
     // Body covers most of sprite, offset from top-left of original texture
     playerBody.setSize(spriteWidth * 0.6, spriteHeight * 0.9);
     playerBody.setOffset(spriteWidth * 0.2, spriteHeight * 0.1);
+    this.player.body.updateFromGameObject();
 
     // Camera follows player horizontally
     this.cameras.main.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
