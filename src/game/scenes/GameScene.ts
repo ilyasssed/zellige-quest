@@ -11,7 +11,7 @@ interface GameState {
 
 const LEVEL_WIDTH = 2000;
 const LEVEL_HEIGHT = 400;
-const GROUND_Y = LEVEL_HEIGHT - 64; // Ground level for player feet
+const GROUND_Y = LEVEL_HEIGHT - 32; // Ground level for player feet
 
 // Jump physics constants (calculated from game config values)
 const PLAYER_GRAVITY = 1400; // 800 world + 600 player
@@ -101,7 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.sandals = this.physics.add.group();
 
     // Create player with PNG sprite (static by default)
-    this.player = this.physics.add.sprite(100, GROUND_Y, "player-static");
+    this.player = this.physics.add.sprite(100, LEVEL_WIDTH - 64, "player-static");
     this.player.setOrigin(0.5, 1); // Anchor at bottom-center so feet stay on ground
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
