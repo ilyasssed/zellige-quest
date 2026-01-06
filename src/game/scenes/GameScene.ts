@@ -396,22 +396,33 @@ export class GameScene extends Phaser.Scene {
     // Spawn sweets on reachable locations
     this.spawnSweets();
 
-    // Tea power-up - place on a mid-level platform
+    // Tea power-up - place on a mid-level platform, or fallback to ground
     const midPlatform = this.platformData[Math.floor(this.platformData.length / 2)];
+    
+    let teaX: number;
+    let teaY: number;
+    
     if (midPlatform) {
-      const tea = this.teas.create(midPlatform.x, midPlatform.y - 20, "tea") as Phaser.Physics.Arcade.Sprite;
-      (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-      tea.setScale(0.3); // 3x character size
-      this.tweens.add({
-        targets: tea,
-        y: tea.y - 10,
-        alpha: 0.8,
-        duration: 600,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+      teaX = midPlatform.x;
+      teaY = midPlatform.y - 20;
+    } else {
+      // Fallback: spawn tea at mid-level on the ground
+      teaX = LEVEL_WIDTH / 2;
+      teaY = GROUND_Y - 50;
     }
+    
+    const tea = this.teas.create(teaX, teaY, "tea") as Phaser.Physics.Arcade.Sprite;
+    (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    tea.setScale(0.3);
+    this.tweens.add({
+      targets: tea,
+      y: tea.y - 10,
+      alpha: 0.8,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
 
     // Enemies - place on ground between platforms
     this.spawnEnemies();
