@@ -101,7 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.sandals = this.physics.add.group();
 
     // Create player with PNG sprite (static by default)
-    this.player = this.physics.add.sprite(100, LEVEL_WIDTH - 64, "player-static");
+    this.player = this.physics.add.sprite(100, GROUND_Y - 64, "player-static");
     this.player.setOrigin(0.5, 1); // Anchor at bottom-center so feet stay on ground
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
@@ -528,7 +528,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     enemyPositions.forEach((pos) => {
-      const enemy = this.enemies.create(pos.x, GROUND_Y - 20, "cockroach") as Phaser.Physics.Arcade.Sprite;
+      const enemy = this.enemies.create(pos.x, GROUND_Y - 32, "cockroach") as Phaser.Physics.Arcade.Sprite;
       enemy.setSize(26, 18);
       enemy.setOffset(3, 5);
       const body = enemy.body as Phaser.Physics.Arcade.Body;
