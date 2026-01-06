@@ -37,8 +37,11 @@ export class BootScene extends Phaser.Scene {
       loadingText.destroy();
     });
 
-    // Load player image
-    this.load.image('player', '/images/player.png');
+    // Load player static and walking frames
+    this.load.image('player-static', '/images/player-static.png');
+    for (let i = 1; i <= 9; i++) {
+      this.load.image(`player-moving${i}`, `/images/player-moving${i}.png`);
+    }
     this.load.audio('soundtrack', '/audio/soundtrack.mp3');
 
     // Generate all game graphics
@@ -219,6 +222,26 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Create player walk animation
+    if (!this.anims.exists('player-walk')) {
+      this.anims.create({
+        key: 'player-walk',
+        frames: [
+          { key: 'player-moving1' },
+          { key: 'player-moving2' },
+          { key: 'player-moving3' },
+          { key: 'player-moving4' },
+          { key: 'player-moving5' },
+          { key: 'player-moving6' },
+          { key: 'player-moving7' },
+          { key: 'player-moving8' },
+          { key: 'player-moving9' },
+        ],
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+
     this.scene.start('MenuScene');
   }
 }
