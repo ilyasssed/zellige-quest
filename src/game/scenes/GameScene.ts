@@ -72,8 +72,8 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Create player with PNG sprite
-    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 120, 'player');
+    // Create player with PNG sprite (static by default)
+    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 120, 'player-static');
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
@@ -442,6 +442,16 @@ export class GameScene extends Phaser.Scene {
       this.player.setFlipX(false);
     } else {
       body.setVelocityX(0);
+    }
+
+    // Play walk animation or show static frame
+    if (isMoving) {
+      if (!this.player.anims.isPlaying || this.player.anims.currentAnim?.key !== 'player-walk') {
+        this.player.anims.play('player-walk');
+      }
+    } else {
+      this.player.anims.stop();
+      this.player.setTexture('player-static');
     }
 
 
