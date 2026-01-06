@@ -15,13 +15,14 @@ interface PlatformData {
 
 const LEVEL_WIDTH = 2000;
 const LEVEL_HEIGHT = 400;
-
-// Jump physics constants
-const PLAYER_GRAVITY = 1400; // 800 world + 600 player
-const MAX_JUMP_HEIGHT = Math.abs(JUMP_VELOCITY * JUMP_VELOCITY) / (2 * PLAYER_GRAVITY); // ~72px
-const JUMP_TIME = (2 * Math.abs(JUMP_VELOCITY)) / PLAYER_GRAVITY; // ~0.64s
-const MAX_HORIZONTAL_JUMP = PLAYER_SPEED * JUMP_TIME; // ~128px
 const GROUND_Y = LEVEL_HEIGHT - 32; // Ground level for player feet
+
+// Jump physics constants (calculated from game config values)
+const PLAYER_GRAVITY = 1400; // 800 world + 600 player
+const JUMP_VELOCITY_VALUE = 450; // absolute value
+const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYER_GRAVITY); // ~72px
+const JUMP_TIME = (2 * JUMP_VELOCITY_VALUE) / PLAYER_GRAVITY; // ~0.64s
+const MAX_HORIZONTAL_JUMP = 200 * JUMP_TIME; // ~128px (using PLAYER_SPEED value)
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
