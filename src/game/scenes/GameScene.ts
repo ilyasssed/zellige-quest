@@ -141,11 +141,13 @@ export class GameScene extends Phaser.Scene {
     // Calculate how many tiles needed to cover LEVEL_WIDTH
     const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
     
-    // Place background images side by side
+    // Place background images side by side with faded colors
     for (let i = 0; i < tilesNeeded; i++) {
       const bg = this.add.image(i * scaledWidth, 0, 'background');
       bg.setOrigin(0, 0);
       bg.setScale(scale);
+      bg.setAlpha(0.7);
+      bg.setTint(0xcccccc);
     }
   }
 
