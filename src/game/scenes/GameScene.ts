@@ -38,7 +38,7 @@ export class GameScene extends Phaser.Scene {
   private playerSpeed = 200;
   private walkFrame = 0;
   private walkFrameTimer = 0;
-  private readonly walkFrames = ['playerMoving1', 'playerMoving2', 'playerMoving3'];
+  private readonly walkFrames = ['playerMoving1', 'playerMoving2', 'playerMoving3', 'playerMoving4', 'playerMoving5', 'playerMoving6', 'playerMoving7', 'playerMoving8', 'playerMoving9'];
   private soundtrack?: Phaser.Sound.BaseSound;
 
   constructor() {
