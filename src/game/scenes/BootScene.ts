@@ -37,8 +37,11 @@ export class BootScene extends Phaser.Scene {
       loadingText.destroy();
     });
 
-    // Load external assets
-    this.load.image('playerSprite', '/images/player.png');
+    // Load external assets - player sprites
+    this.load.image('playerStatic', '/images/player-static.png');
+    this.load.image('playerMoving1', '/images/player-moving1.png');
+    this.load.image('playerMoving2', '/images/player-moving2.png');
+    this.load.image('playerMoving3', '/images/player-moving3.png');
     this.load.audio('soundtrack', '/audio/soundtrack.mp3');
 
     // Generate all game graphics

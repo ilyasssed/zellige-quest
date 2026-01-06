@@ -36,6 +36,9 @@ export class GameScene extends Phaser.Scene {
   private isInvulnerable = false;
   private isGameOver = false;
   private playerSpeed = 200;
+  private walkFrame = 0;
+  private walkFrameTimer = 0;
+  private readonly walkFrames = ['playerMoving1', 'playerMoving2', 'playerMoving3'];
   private soundtrack?: Phaser.Sound.BaseSound;
 
   constructor() {
@@ -72,13 +75,13 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Create player with PNG sprite - elevated further
-    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 120, 'playerSprite');
-    this.player.setScale(0.05);
+    // Create player with PNG sprite - starts with static frame
+    this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 120, 'playerStatic');
+    this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
-    this.player.setSize(600, 700);
-    this.player.setOffset(50, 30);
+    this.player.setSize(180, 220);
+    this.player.setOffset(20, 10);
     this.player.setGravityY(600);
 
     // Camera follows player horizontally
@@ -433,6 +436,8 @@ export class GameScene extends Phaser.Scene {
     const onGround = body.touching.down || body.blocked.down;
 
     // Horizontal movement
+    const isMoving = this.cursors.left.isDown || this.cursors.right.isDown;
+    
     if (this.cursors.left.isDown) {
       body.setVelocityX(-this.playerSpeed);
       this.player.setFlipX(true);
@@ -441,6 +446,20 @@ export class GameScene extends Phaser.Scene {
       this.player.setFlipX(false);
     } else {
       body.setVelocityX(0);
+    }
+
+    // Animate player sprite
+    if (isMoving && onGround) {
+      this.walkFrameTimer += this.game.loop.delta;
+      if (this.walkFrameTimer >= 120) { // Change frame every 120ms
+        this.walkFrameTimer = 0;
+        this.walkFrame = (this.walkFrame + 1) % this.walkFrames.length;
+        this.player.setTexture(this.walkFrames[this.walkFrame]);
+      }
+    } else {
+      this.walkFrame = 0;
+      this.walkFrameTimer = 0;
+      this.player.setTexture('playerStatic');
     }
 
     // Jump
