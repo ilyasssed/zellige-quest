@@ -39,6 +39,7 @@ export class GameScene extends Phaser.Scene {
   private walkFrame = 0;
   private walkFrameTimer = 0;
   private readonly walkFrames = ['playerMoving1', 'playerMoving2', 'playerMoving3', 'playerMoving4', 'playerMoving5', 'playerMoving6', 'playerMoving7', 'playerMoving8', 'playerMoving9'];
+  private currentTexture = '';
   private soundtrack?: Phaser.Sound.BaseSound;
 
   constructor() {
@@ -77,6 +78,7 @@ export class GameScene extends Phaser.Scene {
 
     // Create player with PNG sprite - starts with static frame
     this.player = this.physics.add.sprite(100, LEVEL_HEIGHT - 120, 'playerStatic');
+    this.currentTexture = 'playerStatic';
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
@@ -448,18 +450,25 @@ export class GameScene extends Phaser.Scene {
       body.setVelocityX(0);
     }
 
-    // Animate player sprite
+    // Animate player sprite - only change texture when needed
     if (isMoving && onGround) {
       this.walkFrameTimer += this.game.loop.delta;
-      if (this.walkFrameTimer >= 120) { // Change frame every 120ms
+      if (this.walkFrameTimer >= 80) { // Change frame every 80ms for smoother animation
         this.walkFrameTimer = 0;
         this.walkFrame = (this.walkFrame + 1) % this.walkFrames.length;
-        this.player.setTexture(this.walkFrames[this.walkFrame]);
+        const newTexture = this.walkFrames[this.walkFrame];
+        if (this.currentTexture !== newTexture) {
+          this.player.setTexture(newTexture);
+          this.currentTexture = newTexture;
+        }
       }
     } else {
-      this.walkFrame = 0;
+      // Only set static texture if not already set
+      if (this.currentTexture !== 'playerStatic') {
+        this.player.setTexture('playerStatic');
+        this.currentTexture = 'playerStatic';
+      }
       this.walkFrameTimer = 0;
-      this.player.setTexture('playerStatic');
     }
 
     // Jump
