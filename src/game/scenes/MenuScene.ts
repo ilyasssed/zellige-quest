@@ -155,14 +155,45 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', () => this.startGame());
     this.input.keyboard?.on('keydown-SPACE', () => this.startGame());
 
-    // Start background music
-    if (!this.sound.get('soundtrack')?.isPlaying) {
-      const music = this.sound.add('soundtrack', { loop: true, volume: 0.4 });
+    // Start background music (looping)
+    let music = this.sound.get('soundtrack');
+    if (!music) {
+      music = this.sound.add('soundtrack', { loop: true, volume: 0.4 });
+    }
+    if (!music.isPlaying) {
       music.play();
     }
 
+    // Sound toggle button
+    this.createSoundButton();
+
     // Fade in
     this.cameras.main.fadeIn(500);
+  }
+
+  createSoundButton(): void {
+    const { width } = this.cameras.main;
+    
+    const soundButton = this.add.container(width - 40, 30);
+    
+    const soundBg = this.add.graphics();
+    soundBg.fillStyle(0x000000, 0.6);
+    soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
+    
+    const isMuted = this.sound.mute;
+    const soundIcon = this.add.text(0, 0, isMuted ? '🔇' : '🔊', {
+      fontSize: '20px',
+    });
+    soundIcon.setOrigin(0.5);
+    
+    soundButton.add([soundBg, soundIcon]);
+    soundButton.setSize(40, 40);
+    soundButton.setInteractive({ useHandCursor: true });
+    
+    soundButton.on('pointerdown', () => {
+      this.sound.mute = !this.sound.mute;
+      soundIcon.setText(this.sound.mute ? '🔇' : '🔊');
+    });
   }
 
   startGame(): void {

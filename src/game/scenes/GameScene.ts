@@ -62,6 +62,10 @@ export class GameScene extends Phaser.Scene {
   private soundtrack?: Phaser.Sound.BaseSound;
   
   private platformData: PlatformData[] = [];
+  private isPaused = false;
+  private pauseMenu?: Phaser.GameObjects.Container;
+  private soundButton?: Phaser.GameObjects.Container;
+  private pauseButton?: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -140,18 +144,178 @@ export class GameScene extends Phaser.Scene {
     // Spawn level objects
     this.spawnLevelObjects();
 
-    // Play soundtrack
-    if (this.sound.get('soundtrack')) {
-      this.soundtrack = this.sound.get('soundtrack');
-    } else {
+    // Play soundtrack (looping)
+    this.soundtrack = this.sound.get('soundtrack');
+    if (!this.soundtrack) {
       this.soundtrack = this.sound.add('soundtrack', { loop: true, volume: 0.5 });
     }
     if (!this.soundtrack.isPlaying) {
       this.soundtrack.play();
     }
 
+    // Create control buttons (sound + pause)
+    this.createControlButtons();
+
     // Fade in
     this.cameras.main.fadeIn(500);
+  }
+
+  createControlButtons(): void {
+    const camWidth = this.cameras.main.width;
+    
+    // Sound toggle button
+    this.soundButton = this.add.container(camWidth - 90, 30);
+    this.soundButton.setScrollFactor(0);
+    this.soundButton.setDepth(100);
+    
+    const soundBg = this.add.graphics();
+    soundBg.fillStyle(0x000000, 0.6);
+    soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
+    
+    const isMuted = this.sound.mute;
+    const soundIcon = this.add.text(0, 0, isMuted ? '🔇' : '🔊', {
+      fontSize: '20px',
+    });
+    soundIcon.setOrigin(0.5);
+    soundIcon.setName('soundIcon');
+    
+    this.soundButton.add([soundBg, soundIcon]);
+    this.soundButton.setSize(40, 40);
+    this.soundButton.setInteractive({ useHandCursor: true });
+    
+    this.soundButton.on('pointerdown', () => {
+      this.sound.mute = !this.sound.mute;
+      const icon = this.soundButton?.getByName('soundIcon') as Phaser.GameObjects.Text;
+      if (icon) {
+        icon.setText(this.sound.mute ? '🔇' : '🔊');
+      }
+    });
+
+    // Pause button
+    this.pauseButton = this.add.container(camWidth - 40, 30);
+    this.pauseButton.setScrollFactor(0);
+    this.pauseButton.setDepth(100);
+    
+    const pauseBg = this.add.graphics();
+    pauseBg.fillStyle(0x000000, 0.6);
+    pauseBg.fillRoundedRect(-20, -20, 40, 40, 8);
+    
+    const pauseIcon = this.add.text(0, 0, '⏸️', {
+      fontSize: '20px',
+    });
+    pauseIcon.setOrigin(0.5);
+    
+    this.pauseButton.add([pauseBg, pauseIcon]);
+    this.pauseButton.setSize(40, 40);
+    this.pauseButton.setInteractive({ useHandCursor: true });
+    
+    this.pauseButton.on('pointerdown', () => {
+      this.togglePause();
+    });
+
+    // ESC key to pause
+    this.input.keyboard?.on('keydown-ESC', () => {
+      this.togglePause();
+    });
+  }
+
+  togglePause(): void {
+    if (this.isGameOver) return;
+    
+    this.isPaused = !this.isPaused;
+    
+    if (this.isPaused) {
+      this.physics.pause();
+      this.showPauseMenu();
+    } else {
+      this.physics.resume();
+      this.hidePauseMenu();
+    }
+  }
+
+  showPauseMenu(): void {
+    const { width, height } = this.cameras.main;
+    
+    this.pauseMenu = this.add.container(width / 2, height / 2);
+    this.pauseMenu.setScrollFactor(0);
+    this.pauseMenu.setDepth(200);
+    
+    // Dark overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.7);
+    overlay.fillRect(-width / 2, -height / 2, width, height);
+    
+    // Menu background
+    const menuBg = this.add.graphics();
+    menuBg.fillStyle(0x2F1F0F, 1);
+    menuBg.fillRoundedRect(-120, -100, 240, 200, 16);
+    menuBg.lineStyle(3, 0xD4A574);
+    menuBg.strokeRoundedRect(-120, -100, 240, 200, 16);
+    
+    // Paused title
+    const title = this.add.text(0, -70, 'PAUSED', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '20px',
+      color: '#D4A574',
+    });
+    title.setOrigin(0.5);
+    
+    // Resume button
+    const resumeBtn = this.createMenuButton(0, -20, '▶ Resume', () => {
+      this.togglePause();
+    });
+    
+    // Retry button
+    const retryBtn = this.createMenuButton(0, 30, '↻ Retry', () => {
+      this.hidePauseMenu();
+      this.scene.restart();
+    });
+    
+    // Main Menu button
+    const menuBtn = this.createMenuButton(0, 80, '🏠 Main Menu', () => {
+      this.hidePauseMenu();
+      this.scene.start('MenuScene');
+    });
+    
+    this.pauseMenu.add([overlay, menuBg, title, resumeBtn, retryBtn, menuBtn]);
+  }
+
+  createMenuButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
+    const btn = this.add.container(x, y);
+    
+    const bg = this.add.graphics();
+    bg.fillStyle(0x8B2942, 1);
+    bg.fillRoundedRect(-90, -18, 180, 36, 8);
+    
+    const label = this.add.text(0, 0, text, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
+      color: '#FFFFFF',
+    });
+    label.setOrigin(0.5);
+    
+    btn.add([bg, label]);
+    btn.setSize(180, 36);
+    btn.setInteractive({ useHandCursor: true });
+    
+    btn.on('pointerover', () => {
+      this.tweens.add({ targets: btn, scale: 1.05, duration: 100 });
+    });
+    
+    btn.on('pointerout', () => {
+      this.tweens.add({ targets: btn, scale: 1, duration: 100 });
+    });
+    
+    btn.on('pointerdown', callback);
+    
+    return btn;
+  }
+
+  hidePauseMenu(): void {
+    if (this.pauseMenu) {
+      this.pauseMenu.destroy();
+      this.pauseMenu = undefined;
+    }
   }
 
   createBackground(): void {
@@ -596,7 +760,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(): void {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isPaused) return;
 
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const onGround = body.touching.down || body.blocked.down;
