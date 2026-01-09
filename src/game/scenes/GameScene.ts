@@ -734,6 +734,7 @@ export class GameScene extends Phaser.Scene {
       this.player.y,
       "sandal",
     ) as Phaser.Physics.Arcade.Sprite;
+    sandal.setScale(0.2);
 
     const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
     sandalBody.setAllowGravity(false);
