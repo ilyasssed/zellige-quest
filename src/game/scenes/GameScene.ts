@@ -528,13 +528,17 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Get player hitbox width for reference
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    const playerHitboxWidth = playerBody.width;
+
     enemyPositions.forEach((pos) => {
       const enemy = this.enemies.create(pos.x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
       enemy.setScale(0.1);
 
-      // Set hitbox to match the cockroach sprite width
-      const cockroachWidth = enemy.width * 0.2;
-      const cockroachHeight = enemy.height * 0.15;
+      // Set hitbox smaller than player's hitbox width
+      const cockroachWidth = Math.min(enemy.width * 0.15, playerHitboxWidth * 0.6);
+      const cockroachHeight = enemy.height * 0.12;
       enemy.setSize(cockroachWidth, cockroachHeight);
       enemy.setOffset((enemy.width - cockroachWidth) / 2, enemy.height - cockroachHeight);
 
@@ -554,14 +558,27 @@ export class GameScene extends Phaser.Scene {
     platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
+    const platformSprite = platform as Phaser.Physics.Arcade.Sprite;
     const body = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    // Reverse direction when hitting platform from side
+    // Only reverse direction when hitting platform from side (not when player is above)
+    // Check if it's a horizontal collision (side hit)
     if (body.touching.left || body.touching.right) {
-      const newDirection = body.touching.left ? 1 : -1;
-      body.setVelocityX(80 * newDirection);
-      enemySprite.setFlipX(newDirection < 0);
-      enemySprite.setData("direction", newDirection);
+      // Make sure we're hitting an actual platform/obstacle, not the player
+      // Platforms are static and at a fixed position
+      const platformBody = platformSprite.body as Phaser.Physics.Arcade.Body;
+      
+      // Only reverse if the platform is at the same Y level as the enemy (not above)
+      const enemyBottom = body.bottom;
+      const platformTop = platformBody.top;
+      
+      // If enemy's bottom is above platform's top, it's not a side collision
+      if (enemyBottom > platformTop) {
+        const newDirection = body.touching.left ? 1 : -1;
+        body.setVelocityX(80 * newDirection);
+        enemySprite.setFlipX(newDirection < 0);
+        enemySprite.setData("direction", newDirection);
+      }
     }
   }
 
