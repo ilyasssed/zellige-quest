@@ -748,7 +748,7 @@ export class GameScene extends Phaser.Scene {
       startY: startY,
       startX: startX,
       amplitude: amplitude,
-      frequency: 0.02, // Controls wave tightness (0.01 = wide, 0.05 = tight)
+      frequency: 0.05, // Tighter waves for easier enemy hits
     });
 
     // Rotation animation
@@ -906,7 +906,7 @@ export class GameScene extends Phaser.Scene {
       // Calculate sine wave Y position
       if (typeof startX === "number") {
         const distanceTraveled = Math.abs(sandal.x - startX);
-        const yOffset = Math.sin(distanceTraveled * freq) * amplitude;
+        const yOffset = Math.abs(Math.sin(distanceTraveled * freq)) * amplitude;
         sandal.y = startY - yOffset;
       }
 
