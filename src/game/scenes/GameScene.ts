@@ -528,7 +528,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     enemyPositions.forEach((pos) => {
-      const enemy = this.enemies.create(pos.x, GROUND_Y - 64, "cockroach") as Phaser.Physics.Arcade.Sprite;
+      const enemy = this.enemies.create(pos.x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
       enemy.setScale(0.4);
 
       // Set hitbox to match the cockroach sprite width
