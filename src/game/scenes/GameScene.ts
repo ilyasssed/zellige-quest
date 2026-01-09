@@ -729,17 +729,13 @@ export class GameScene extends Phaser.Scene {
     this.canThrow = false;
 
     const direction = this.player.flipX ? -1 : 1;
-    
+
     // Start point: Bottom of the character
     const startX = this.player.x + 30 * direction;
     const startY = this.player.y;
 
-    const sandal = this.sandals.create(
-      startX,
-      startY,
-      "sandal",
-    ) as Phaser.Physics.Arcade.Sprite;
-    sandal.setScale(0.2);
+    const sandal = this.sandals.create(startX, startY, "sandal") as Phaser.Physics.Arcade.Sprite;
+    sandal.setScale(0.1);
 
     const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
     sandalBody.setAllowGravity(false);
@@ -900,15 +896,15 @@ export class GameScene extends Phaser.Scene {
     // Update sandals with sine wave movement and cleanup
     this.sandals.getChildren().forEach((child) => {
       const sandal = child as Phaser.Physics.Arcade.Sprite;
-      
+
       // Get sine wave data
-      const startX = sandal.getData('startX');
-      const startY = sandal.getData('startY');
-      const amplitude = sandal.getData('amplitude');
-      const freq = sandal.getData('frequency');
+      const startX = sandal.getData("startX");
+      const startY = sandal.getData("startY");
+      const amplitude = sandal.getData("amplitude");
+      const freq = sandal.getData("frequency");
 
       // Calculate sine wave Y position
-      if (typeof startX === 'number') {
+      if (typeof startX === "number") {
         const distanceTraveled = Math.abs(sandal.x - startX);
         const yOffset = Math.sin(distanceTraveled * freq) * amplitude;
         sandal.y = startY - yOffset;
