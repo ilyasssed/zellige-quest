@@ -527,7 +527,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies(): void {
-    // ... (previous code remains the same)
+    // Generate enemy positions on the ground between platforms
+    const enemyPositions: { x: number; y: number }[] = [];
+    
+    // Add enemies at intervals along the ground
+    const numEnemies = 5; // Number of enemies to spawn
+    const spacing = LEVEL_WIDTH / (numEnemies + 1);
+    
+    for (let i = 1; i <= numEnemies; i++) {
+      const x = spacing * i;
+      // Avoid spawning too close to player start position
+      if (x > 300) {
+        enemyPositions.push({ x, y: GROUND_Y });
+      }
+    }
 
     enemyPositions.forEach((pos) => {
       const enemy = this.enemies.create(pos.x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
