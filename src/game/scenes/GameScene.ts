@@ -549,9 +549,9 @@ export class GameScene extends Phaser.Scene {
       const enemy = this.enemies.create(pos.x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
       enemy.setScale(0.1);
 
-      // Set hitbox smaller than player's hitbox width
-      const cockroachWidth = Math.min(enemy.width * 0.15, playerHitboxWidth * 0.6);
-      const cockroachHeight = enemy.height * 0.12;
+      // Set hitbox smaller than player's hitbox width (50% of player width)
+      const cockroachWidth = playerHitboxWidth * 0.5;
+      const cockroachHeight = enemy.height * 0.1;
       enemy.setSize(cockroachWidth, cockroachHeight);
       enemy.setOffset((enemy.width - cockroachWidth) / 2, enemy.height - cockroachHeight);
 
@@ -573,20 +573,21 @@ export class GameScene extends Phaser.Scene {
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
     const platformSprite = platform as Phaser.Physics.Arcade.Sprite;
     const body = enemySprite.body as Phaser.Physics.Arcade.Body;
+    const platformBody = platformSprite.body as Phaser.Physics.Arcade.StaticBody;
 
-    // Only reverse direction when hitting platform from side (not when player is above)
-    // Check if it's a horizontal collision (side hit)
+    // Only reverse direction when hitting a wall/obstacle from the side
+    // This is a true horizontal collision with a static platform
     if (body.touching.left || body.touching.right) {
-      // Make sure we're hitting an actual platform/obstacle, not the player
-      // Platforms are static and at a fixed position
-      const platformBody = platformSprite.body as Phaser.Physics.Arcade.Body;
-
-      // Only reverse if the platform is at the same Y level as the enemy (not above)
+      // Check if this is a side collision (enemy and platform overlap vertically)
+      const enemyTop = body.top;
       const enemyBottom = body.bottom;
       const platformTop = platformBody.top;
+      const platformBottom = platformBody.bottom;
 
-      // If enemy's bottom is above platform's top, it's not a side collision
-      if (enemyBottom > platformTop) {
+      // True side collision: enemy's vertical range overlaps with platform's vertical range
+      const verticalOverlap = enemyBottom > platformTop && enemyTop < platformBottom;
+      
+      if (verticalOverlap) {
         const newDirection = body.touching.left ? 1 : -1;
         body.setVelocityX(80 * newDirection);
         enemySprite.setFlipX(newDirection < 0);
