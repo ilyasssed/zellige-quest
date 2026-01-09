@@ -528,18 +528,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     enemyPositions.forEach((pos) => {
-      const enemy = this.enemies.create(pos.x, GROUND_Y - 40, "cockroach") as Phaser.Physics.Arcade.Sprite;
+      const enemy = this.enemies.create(pos.x, GROUND_Y - 64, "cockroach") as Phaser.Physics.Arcade.Sprite;
       enemy.setScale(0.4);
-      
+
       // Set hitbox to match the cockroach sprite width
-      const cockroachWidth = enemy.width * 0.8;
-      const cockroachHeight = enemy.height * 0.6;
+      const cockroachWidth = player.width * 0.4;
+      const cockroachHeight = player.height * 0.3;
       enemy.setSize(cockroachWidth, cockroachHeight);
       enemy.setOffset((enemy.width - cockroachWidth) / 2, enemy.height - cockroachHeight);
-      
+
       const body = enemy.body as Phaser.Physics.Arcade.Body;
       body.setBounce(0, 0);
-      
+
       // Initial direction: move toward player
       const direction = this.player.x > pos.x ? 1 : -1;
       body.setVelocityX(80 * direction);
@@ -801,7 +801,7 @@ export class GameScene extends Phaser.Scene {
         // Move toward player
         const currentDirection = enemy.getData("direction") as number;
         const targetDirection = this.player.x > enemy.x ? 1 : -1;
-        
+
         // Only change direction if not blocked
         if (currentDirection !== targetDirection) {
           enemy.setData("direction", targetDirection);
