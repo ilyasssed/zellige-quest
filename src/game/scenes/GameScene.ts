@@ -500,7 +500,7 @@ export class GameScene extends Phaser.Scene {
     // Create sweets at selected positions
     selectedPositions.forEach((pos) => {
       const sweet = this.sweets.create(pos.x, pos.y, "sweet") as Phaser.Physics.Arcade.Sprite;
-      sweet.setScale(0.5);
+      sweet.setScale(0.1);
       (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
       this.tweens.add({
         targets: sweet,
@@ -567,11 +567,11 @@ export class GameScene extends Phaser.Scene {
       // Make sure we're hitting an actual platform/obstacle, not the player
       // Platforms are static and at a fixed position
       const platformBody = platformSprite.body as Phaser.Physics.Arcade.Body;
-      
+
       // Only reverse if the platform is at the same Y level as the enemy (not above)
       const enemyBottom = body.bottom;
       const platformTop = platformBody.top;
-      
+
       // If enemy's bottom is above platform's top, it's not a side collision
       if (enemyBottom > platformTop) {
         const newDirection = body.touching.left ? 1 : -1;
@@ -651,9 +651,9 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.flash(200, 50, 205, 50);
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
-    
+
     // Play munch sound
-    this.sound.play('munch', { volume: 0.6 });
+    this.sound.play("munch", { volume: 0.6 });
   }
 
   handleEnemyCollision(
@@ -681,8 +681,8 @@ export class GameScene extends Phaser.Scene {
 
   defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
     // Play enemy death sound
-    this.sound.play('enemyDeath', { volume: 0.5 });
-    
+    this.sound.play("enemyDeath", { volume: 0.5 });
+
     this.tweens.add({
       targets: enemy,
       scaleY: 0.2,
@@ -742,7 +742,7 @@ export class GameScene extends Phaser.Scene {
     this.updateLivesDisplay();
 
     // Play ouch sound
-    this.sound.play('ouch', { volume: 0.6 });
+    this.sound.play("ouch", { volume: 0.6 });
 
     // Red tint overlay effect
     this.player.setTint(0xff0000);
