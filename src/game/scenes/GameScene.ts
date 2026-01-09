@@ -729,18 +729,33 @@ export class GameScene extends Phaser.Scene {
     this.canThrow = false;
 
     const direction = this.player.flipX ? -1 : 1;
+    
+    // Start point: Bottom of the character
+    const startX = this.player.x + 30 * direction;
+    const startY = this.player.y;
+
     const sandal = this.sandals.create(
-      this.player.x + 30 * direction,
-      this.player.y,
+      startX,
+      startY,
       "sandal",
     ) as Phaser.Physics.Arcade.Sprite;
-    sandal.setScale(0.1);
+    sandal.setScale(0.2);
 
     const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
     sandalBody.setAllowGravity(false);
     sandalBody.setVelocityX(SANDAL_SPEED * direction);
     if (direction < 0) sandal.setFlipX(true);
 
+    // Setup sine wave data - amplitude is half the player's height
+    const amplitude = this.player.displayHeight / 2;
+    sandal.setData({
+      startY: startY,
+      startX: startX,
+      amplitude: amplitude,
+      frequency: 0.02, // Controls wave tightness (0.01 = wide, 0.05 = tight)
+    });
+
+    // Rotation animation
     this.tweens.add({
       targets: sandal,
       angle: 360 * direction,
@@ -882,10 +897,27 @@ export class GameScene extends Phaser.Scene {
       this.gameOver();
     }
 
-    // Cleanup off-screen sandals
+    // Update sandals with sine wave movement and cleanup
     this.sandals.getChildren().forEach((child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      if (sprite.x < 0 || sprite.x > LEVEL_WIDTH) sprite.destroy();
+      const sandal = child as Phaser.Physics.Arcade.Sprite;
+      
+      // Get sine wave data
+      const startX = sandal.getData('startX');
+      const startY = sandal.getData('startY');
+      const amplitude = sandal.getData('amplitude');
+      const freq = sandal.getData('frequency');
+
+      // Calculate sine wave Y position
+      if (typeof startX === 'number') {
+        const distanceTraveled = Math.abs(sandal.x - startX);
+        const yOffset = Math.sin(distanceTraveled * freq) * amplitude;
+        sandal.y = startY - yOffset;
+      }
+
+      // Cleanup if off-screen
+      if (sandal.x < 0 || sandal.x > LEVEL_WIDTH) {
+        sandal.destroy();
+      }
     });
   }
 }
