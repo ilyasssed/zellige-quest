@@ -514,7 +514,7 @@ export class GameScene extends Phaser.Scene {
 
   spawnEnemies(): void {
     // Place enemies on the ground in gaps between platforms
-    const enemyPositions: { x: number; direction: number }[] = [];
+    const enemyPositions: { x: number }[] = [];
 
     for (let i = 0; i < this.platformData.length - 1; i++) {
       const current = this.platformData[i];
@@ -523,19 +523,28 @@ export class GameScene extends Phaser.Scene {
 
       // Only spawn in larger gaps
       if (next.x - current.x > 150 && Math.random() < 0.6) {
-        enemyPositions.push({ x: gapX, direction: Math.random() < 0.5 ? 1 : -1 });
+        enemyPositions.push({ x: gapX });
       }
     }
 
     enemyPositions.forEach((pos) => {
-      const enemy = this.enemies.create(pos.x, GROUND_Y - 32, "cockroach") as Phaser.Physics.Arcade.Sprite;
-      enemy.setSize(26, 18);
-      enemy.setOffset(3, 5);
+      const enemy = this.enemies.create(pos.x, GROUND_Y - 40, "cockroach") as Phaser.Physics.Arcade.Sprite;
+      enemy.setScale(0.8);
+      
+      // Set hitbox to match the cockroach sprite width
+      const cockroachWidth = enemy.width * 0.8;
+      const cockroachHeight = enemy.height * 0.6;
+      enemy.setSize(cockroachWidth, cockroachHeight);
+      enemy.setOffset((enemy.width - cockroachWidth) / 2, enemy.height - cockroachHeight);
+      
       const body = enemy.body as Phaser.Physics.Arcade.Body;
-      body.setVelocityX(80 * pos.direction);
       body.setBounce(0, 0);
-      enemy.setData("direction", pos.direction);
-      if (pos.direction < 0) enemy.setFlipX(true);
+      
+      // Initial direction: move toward player
+      const direction = this.player.x > pos.x ? 1 : -1;
+      body.setVelocityX(80 * direction);
+      enemy.setData("direction", direction);
+      enemy.setFlipX(direction < 0);
     });
   }
 
@@ -635,10 +644,16 @@ export class GameScene extends Phaser.Scene {
     const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
     const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    if (playerBody.velocity.y > 0 && playerBody.bottom < enemyBody.center.y) {
+    // Check if player is jumping on top of the enemy (stomp)
+    // Player must be falling down AND player's feet must be above enemy's top half
+    const isStomping = playerBody.velocity.y > 0 && playerBody.bottom <= enemyBody.top + enemyBody.halfHeight * 0.5;
+
+    if (isStomping) {
+      // Defeat enemy and bounce player up - make player briefly invulnerable to prevent re-collision
       this.defeatEnemy(enemySprite);
-      playerBody.setVelocityY(-300);
+      playerBody.setVelocityY(-350); // Bounce up
     } else if (!this.isInvulnerable) {
+      // Side collision - take damage
       this.takeDamage();
     }
   }
@@ -771,15 +786,28 @@ export class GameScene extends Phaser.Scene {
       this.throwSandal();
     }
 
-    // Update enemy movement (reverse at world bounds)
+    // Update enemy movement - move toward player, reverse at world bounds
     this.enemies.getChildren().forEach((child) => {
       const enemy = child as Phaser.Physics.Arcade.Sprite;
       const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
 
+      // Reverse at world bounds
       if (enemy.x <= 50 || enemy.x >= LEVEL_WIDTH - 50) {
         const newDirection = enemy.x <= 50 ? 1 : -1;
         enemyBody.setVelocityX(80 * newDirection);
         enemy.setFlipX(newDirection < 0);
+        enemy.setData("direction", newDirection);
+      } else {
+        // Move toward player
+        const currentDirection = enemy.getData("direction") as number;
+        const targetDirection = this.player.x > enemy.x ? 1 : -1;
+        
+        // Only change direction if not blocked
+        if (currentDirection !== targetDirection) {
+          enemy.setData("direction", targetDirection);
+          enemyBody.setVelocityX(80 * targetDirection);
+          enemy.setFlipX(targetDirection < 0);
+        }
       }
     });
 
