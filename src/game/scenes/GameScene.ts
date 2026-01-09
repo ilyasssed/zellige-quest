@@ -633,6 +633,9 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.flash(200, 50, 205, 50);
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
+    
+    // Play munch sound
+    this.sound.play('munch', { volume: 0.6 });
   }
 
   handleEnemyCollision(
@@ -659,6 +662,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
+    // Play enemy death sound
+    this.sound.play('enemyDeath', { volume: 0.5 });
+    
     this.tweens.add({
       targets: enemy,
       scaleY: 0.2,
@@ -717,6 +723,16 @@ export class GameScene extends Phaser.Scene {
     this.gameState.lives--;
     this.updateLivesDisplay();
 
+    // Play ouch sound
+    this.sound.play('ouch', { volume: 0.6 });
+
+    // Red tint overlay effect
+    this.player.setTint(0xff0000);
+    this.time.delayedCall(150, () => {
+      this.player.clearTint();
+    });
+
+    // Flashing invulnerability
     this.tweens.add({
       targets: this.player,
       alpha: 0.3,
