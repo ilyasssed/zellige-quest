@@ -532,8 +532,8 @@ export class GameScene extends Phaser.Scene {
       enemy.setScale(0.4);
 
       // Set hitbox to match the cockroach sprite width
-      const cockroachWidth = player.width * 0.4;
-      const cockroachHeight = player.height * 0.3;
+      const cockroachWidth = enemy.width * 0.2;
+      const cockroachHeight = enemy.height * 0.15;
       enemy.setSize(cockroachWidth, cockroachHeight);
       enemy.setOffset((enemy.width - cockroachWidth) / 2, enemy.height - cockroachHeight);
 
