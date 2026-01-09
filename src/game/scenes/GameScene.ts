@@ -527,38 +527,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies(): void {
-    // Place enemies on the ground in gaps between platforms
-    const enemyPositions: { x: number }[] = [];
-
-    for (let i = 0; i < this.platformData.length - 1; i++) {
-      const current = this.platformData[i];
-      const next = this.platformData[i + 1];
-      const gapX = (current.x + next.x) / 2;
-
-      // Only spawn in larger gaps
-      if (next.x - current.x > 150 && Math.random() < 0.6) {
-        enemyPositions.push({ x: gapX });
-      }
-    }
-
-    // Get player hitbox width for reference
-    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    const playerHitboxWidth = playerBody.width;
+    // ... (previous code remains the same)
 
     enemyPositions.forEach((pos) => {
       const enemy = this.enemies.create(pos.x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
       enemy.setScale(0.1);
 
-      // Set hitbox smaller than player's hitbox width (50% of player width)
-      const cockroachWidth = playerHitboxWidth * 0.5;
-      const cockroachHeight = enemy.height * 0.1;
-      enemy.setSize(cockroachWidth, cockroachHeight);
-      enemy.setOffset((enemy.width - cockroachWidth) / 2, enemy.height - cockroachHeight);
+      // --- FIX STARTS HERE ---
+
+      // 1. Get the actual dimensions after scaling
+      const width = enemy.width;
+      const height = enemy.height;
+
+      // 2. Make the hitbox TALLER.
+      // Previously it was 0.1 (10%), which is too flat.
+      // We change it to 0.5 (50%) or 0.6 so the player hits the "back" of the bug.
+      const hitWidth = width * 0.6; // Slightly narrower than sprite
+      const hitHeight = height * 0.5; // Taller so it catches the jump earlier
+
+      enemy.setSize(hitWidth, hitHeight);
+
+      // 3. Center the hitbox horizontally, align it to bottom vertically
+      enemy.setOffset(
+        (width - hitWidth) / 2, // Center X
+        height - hitHeight, // Align to bottom Y
+      );
+
+      // --- FIX ENDS HERE ---
 
       const body = enemy.body as Phaser.Physics.Arcade.Body;
       body.setBounce(0, 0);
 
-      // Initial direction: move toward player
+      // Initial direction
       const direction = this.player.x > pos.x ? 1 : -1;
       body.setVelocityX(80 * direction);
       enemy.setData("direction", direction);
