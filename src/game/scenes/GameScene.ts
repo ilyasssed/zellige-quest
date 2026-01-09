@@ -500,7 +500,7 @@ export class GameScene extends Phaser.Scene {
     // Create sweets at selected positions
     selectedPositions.forEach((pos) => {
       const sweet = this.sweets.create(pos.x, pos.y, "sweet") as Phaser.Physics.Arcade.Sprite;
-      sweet.setScale(0.1);
+      sweet.setScale(0.3);
       (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
       this.tweens.add({
         targets: sweet,
