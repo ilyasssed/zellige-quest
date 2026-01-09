@@ -47,6 +47,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('tea', '/images/tea.png');
     this.load.image('sweet', '/images/sweet.png');
     this.load.image('cockroach', '/images/cockroach.png');
+    this.load.image('sandal', '/images/projectile.png');
 
     // Generate sound effects
     this.generateMunchSound();
@@ -58,7 +59,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   generateGameAssets(): void {
-    this.generateSandalSprite();
     this.generatePlatformSprite();
     this.generateGroundSprite();
     this.generateLanternSprite();
@@ -66,18 +66,6 @@ export class BootScene extends Phaser.Scene {
     this.generateHeartSprite();
   }
 
-  generateSandalSprite(): void {
-    const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0xD4A574);
-    graphics.fillRoundedRect(2, 6, 20, 12, 4);
-    graphics.fillStyle(0x8B2942);
-    graphics.fillRect(8, 8, 8, 2);
-    graphics.fillRect(10, 10, 4, 4);
-    graphics.fillStyle(0xD4A574);
-    graphics.fillTriangle(22, 12, 28, 10, 22, 8);
-    graphics.generateTexture('sandal', 30, 20);
-    graphics.destroy();
-  }
 
   generatePlatformSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
