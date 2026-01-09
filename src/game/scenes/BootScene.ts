@@ -45,6 +45,7 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('soundtrack', '/audio/soundtrack.mp3');
     this.load.image('background', '/images/background.png');
     this.load.image('tea', '/images/tea.png');
+    this.load.image('cockroach', '/images/cockroach.png');
 
     // Generate all game graphics
     this.generateGameAssets();
@@ -53,7 +54,6 @@ export class BootScene extends Phaser.Scene {
   generateGameAssets(): void {
     this.generateChebakiaSprite();
     this.generateSandalSprite();
-    this.generateCockroachSprite();
     this.generatePlatformSprite();
     this.generateGroundSprite();
     this.generateLanternSprite();
@@ -87,35 +87,6 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(0xD4A574);
     graphics.fillTriangle(22, 12, 28, 10, 22, 8);
     graphics.generateTexture('sandal', 30, 20);
-    graphics.destroy();
-  }
-
-  generateCockroachSprite(): void {
-    const graphics = this.make.graphics({ x: 0, y: 0 });
-    
-    // Body - oval shape
-    graphics.fillStyle(0x3D2914);
-    graphics.fillEllipse(16, 14, 26, 14);
-    
-    // Head
-    graphics.fillStyle(0x2F1F0F);
-    graphics.fillCircle(4, 14, 5);
-    
-    // Legs only (no antennae)
-    graphics.lineStyle(2, 0x2F1F0F);
-    graphics.lineBetween(8, 18, 4, 24);
-    graphics.lineBetween(14, 20, 14, 26);
-    graphics.lineBetween(20, 18, 24, 24);
-    
-    // Eyes
-    graphics.fillStyle(0xFFFFFF);
-    graphics.fillCircle(3, 12, 2);
-    graphics.fillCircle(6, 12, 2);
-    graphics.fillStyle(0x000000);
-    graphics.fillCircle(2, 12, 1);
-    graphics.fillCircle(5, 12, 1);
-    
-    graphics.generateTexture('cockroach', 32, 28);
     graphics.destroy();
   }
 
