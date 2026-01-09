@@ -400,11 +400,13 @@ export class GameScene extends Phaser.Scene {
     return generator.generate();
   }
 
+  private sweetPositions: { x: number; y: number }[] = [];
+
   spawnLevelObjects(): void {
-    // Spawn exactly 5 sweets using seeded random
+    // Spawn exactly 5 sweets using seeded random (store positions for tea)
     this.spawnSweets();
 
-    // Spawn exactly 1 tea using seeded random
+    // Spawn exactly 1 tea using seeded random (avoiding sweet positions)
     this.spawnTea();
 
     // Enemies - place on ground between platforms
@@ -434,14 +436,22 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Filter out positions that are too close to sweets
+    const filteredPositions = possiblePositions.filter((pos) => {
+      return !this.sweetPositions.some(
+        (sweetPos) => Math.abs(sweetPos.x - pos.x) < 80 && Math.abs(sweetPos.y - pos.y) < 80
+      );
+    });
+
     // Pick a random position using seeded RNG
-    if (possiblePositions.length === 0) {
+    const finalPositions = filteredPositions.length > 0 ? filteredPositions : possiblePositions;
+    if (finalPositions.length === 0) {
       // Fallback to center of level
-      possiblePositions.push({ x: LEVEL_WIDTH / 2, y: GROUND_Y - 50 });
+      finalPositions.push({ x: LEVEL_WIDTH / 2, y: GROUND_Y - 50 });
     }
 
-    const teaIndex = Math.floor(this.rng.random() * possiblePositions.length);
-    const teaPos = possiblePositions[teaIndex];
+    const teaIndex = Math.floor(this.rng.random() * finalPositions.length);
+    const teaPos = finalPositions[teaIndex];
 
     const tea = this.teas.create(teaPos.x, teaPos.y, "tea") as Phaser.Physics.Arcade.Sprite;
     (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
@@ -496,6 +506,9 @@ export class GameScene extends Phaser.Scene {
     // Shuffle positions using seeded RNG and pick exactly SWEET_COUNT
     this.rng.shuffle(possiblePositions);
     const selectedPositions = possiblePositions.slice(0, SWEET_COUNT);
+
+    // Store sweet positions so tea doesn't spawn at same place
+    this.sweetPositions = selectedPositions.slice();
 
     // Create sweets at selected positions
     selectedPositions.forEach((pos) => {
