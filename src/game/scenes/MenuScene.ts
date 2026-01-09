@@ -52,29 +52,6 @@ export class MenuScene extends Phaser.Scene {
       tile.setAlpha(0.4);
     }
 
-    // Floating collectibles as decoration
-    const sweet1 = this.add.image(80, 120, 'chebakia');
-    sweet1.setScale(1.5);
-    sweet1.setAlpha(0.7);
-    this.tweens.add({
-      targets: sweet1,
-      angle: 360,
-      duration: 4000,
-      repeat: -1,
-    });
-
-    const tea = this.add.image(width - 80, 130, 'tea');
-    tea.setScale(1.2);
-    tea.setAlpha(0.7);
-    this.tweens.add({
-      targets: tea,
-      y: tea.y - 10,
-      duration: 1500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
     // Game title
     const title = this.add.text(width / 2, 80, 'MOROCCAN WEDDING RUN', {
       fontFamily: '"Press Start 2P", monospace',
@@ -128,7 +105,7 @@ export class MenuScene extends Phaser.Scene {
     this.pressStartText = this.add.text(width / 2, 210, 'PRESS ENTER OR CLICK START', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
-      color: '#888888',
+      color: '#FFFFFF',
     });
     this.pressStartText.setOrigin(0.5);
 
