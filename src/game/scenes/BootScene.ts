@@ -47,6 +47,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image('tea', '/images/tea.png');
     this.load.image('cockroach', '/images/cockroach.png');
 
+    // Generate sound effects
+    this.generateMunchSound();
+    this.generateOuchSound();
+    this.generateEnemyDeathSound();
+
     // Generate all game graphics
     this.generateGameAssets();
   }
@@ -207,6 +212,118 @@ export class BootScene extends Phaser.Scene {
     graphics.fillRect(116, 56, 8, 8);
     graphics.generateTexture('arch', 128, 128);
     graphics.destroy();
+  }
+
+  generateMunchSound(): void {
+    // Generate a simple munch/crunch sound using Web Audio
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const sampleRate = audioContext.sampleRate;
+    const duration = 0.15;
+    const samples = Math.floor(sampleRate * duration);
+    const buffer = audioContext.createBuffer(1, samples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < samples; i++) {
+      const t = i / sampleRate;
+      // Crunchy noise with decay
+      const noise = (Math.random() * 2 - 1) * Math.exp(-t * 20);
+      const crunch = Math.sin(t * 800) * Math.exp(-t * 15) * 0.5;
+      data[i] = (noise + crunch) * 0.5;
+    }
+
+    // Convert to WAV and create data URL
+    const wavBlob = this.bufferToWav(buffer);
+    const url = URL.createObjectURL(wavBlob);
+    this.load.audio('munch', url);
+  }
+
+  generateOuchSound(): void {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const sampleRate = audioContext.sampleRate;
+    const duration = 0.3;
+    const samples = Math.floor(sampleRate * duration);
+    const buffer = audioContext.createBuffer(1, samples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < samples; i++) {
+      const t = i / sampleRate;
+      // Descending "ouch" tone
+      const freq = 400 - t * 600;
+      const tone = Math.sin(t * freq * Math.PI * 2) * Math.exp(-t * 8);
+      data[i] = tone * 0.4;
+    }
+
+    const wavBlob = this.bufferToWav(buffer);
+    const url = URL.createObjectURL(wavBlob);
+    this.load.audio('ouch', url);
+  }
+
+  generateEnemyDeathSound(): void {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const sampleRate = audioContext.sampleRate;
+    const duration = 0.25;
+    const samples = Math.floor(sampleRate * duration);
+    const buffer = audioContext.createBuffer(1, samples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < samples; i++) {
+      const t = i / sampleRate;
+      // Squish/splat sound - descending with noise
+      const freq = 200 - t * 400;
+      const tone = Math.sin(t * Math.max(freq, 50) * Math.PI * 2) * Math.exp(-t * 12);
+      const noise = (Math.random() * 2 - 1) * Math.exp(-t * 10) * 0.3;
+      data[i] = (tone + noise) * 0.4;
+    }
+
+    const wavBlob = this.bufferToWav(buffer);
+    const url = URL.createObjectURL(wavBlob);
+    this.load.audio('enemyDeath', url);
+  }
+
+  bufferToWav(buffer: AudioBuffer): Blob {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const data = buffer.getChannelData(0);
+    const samples = data.length;
+    const dataSize = samples * blockAlign;
+    const bufferSize = 44 + dataSize;
+    const arrayBuffer = new ArrayBuffer(bufferSize);
+    const view = new DataView(arrayBuffer);
+
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, bufferSize - 8, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Write audio data
+    let offset = 44;
+    for (let i = 0; i < samples; i++) {
+      const sample = Math.max(-1, Math.min(1, data[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
   }
 
   generateHeartSprite(): void {
