@@ -586,7 +586,7 @@ export class GameScene extends Phaser.Scene {
 
       // True side collision: enemy's vertical range overlaps with platform's vertical range
       const verticalOverlap = enemyBottom > platformTop && enemyTop < platformBottom;
-      
+
       if (verticalOverlap) {
         const newDirection = body.touching.left ? 1 : -1;
         body.setVelocityX(80 * newDirection);
@@ -679,9 +679,19 @@ export class GameScene extends Phaser.Scene {
     const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
     const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    // Check if player is jumping on top of the enemy (stomp)
-    // Player must be falling down AND player's feet must be above enemy's top half
-    const isStomping = playerBody.velocity.y > 0 && playerBody.bottom <= enemyBody.top + enemyBody.halfHeight * 0.5;
+    // --- NEW LOGIC STARTS HERE ---
+
+    // 1. Check if player is falling (velocity Y > 0)
+    const isFalling = playerBody.velocity.y > 0;
+
+    // 2. Check position: Are player's feet above the enemy's center?
+    // We use center.y instead of top to be more forgiving if the player overlaps deep
+    const isAbove = playerBody.bottom <= enemyBody.center.y;
+
+    // Combine them
+    const isStomping = isFalling && isAbove;
+
+    // --- NEW LOGIC ENDS HERE ---
 
     if (isStomping) {
       // Defeat enemy and bounce player up - make player briefly invulnerable to prevent re-collision
