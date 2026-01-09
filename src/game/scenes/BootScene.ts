@@ -45,6 +45,7 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('soundtrack', '/audio/soundtrack.mp3');
     this.load.image('background', '/images/background.png');
     this.load.image('tea', '/images/tea.png');
+    this.load.image('sweet', '/images/sweet.png');
     this.load.image('cockroach', '/images/cockroach.png');
 
     // Generate sound effects
@@ -57,29 +58,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   generateGameAssets(): void {
-    this.generateChebakiaSprite();
     this.generateSandalSprite();
     this.generatePlatformSprite();
     this.generateGroundSprite();
     this.generateLanternSprite();
     this.generateArchSprite();
     this.generateHeartSprite();
-  }
-
-  generateChebakiaSprite(): void {
-    const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0xCD853F);
-    graphics.fillCircle(12, 12, 4);
-    for (let i = 0; i < 6; i++) {
-      const angle = (i * Math.PI * 2) / 6;
-      const x = 12 + Math.cos(angle) * 7;
-      const y = 12 + Math.sin(angle) * 7;
-      graphics.fillCircle(x, y, 4);
-    }
-    graphics.fillStyle(0xDAA520);
-    graphics.fillCircle(12, 12, 3);
-    graphics.generateTexture('chebakia', 24, 24);
-    graphics.destroy();
   }
 
   generateSandalSprite(): void {
