@@ -439,7 +439,7 @@ export class GameScene extends Phaser.Scene {
     // Filter out positions that are too close to sweets
     const filteredPositions = possiblePositions.filter((pos) => {
       return !this.sweetPositions.some(
-        (sweetPos) => Math.abs(sweetPos.x - pos.x) < 80 && Math.abs(sweetPos.y - pos.y) < 80
+        (sweetPos) => Math.abs(sweetPos.x - pos.x) < 80 && Math.abs(sweetPos.y - pos.y) < 80,
       );
     });
 
@@ -513,7 +513,7 @@ export class GameScene extends Phaser.Scene {
     // Create sweets at selected positions
     selectedPositions.forEach((pos) => {
       const sweet = this.sweets.create(pos.x, pos.y, "sweet") as Phaser.Physics.Arcade.Sprite;
-      sweet.setScale(0.3);
+      sweet.setScale(0.2);
       (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
       this.tweens.add({
         targets: sweet,
