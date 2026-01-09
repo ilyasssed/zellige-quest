@@ -529,11 +529,11 @@ export class GameScene extends Phaser.Scene {
   spawnEnemies(): void {
     // Generate enemy positions on the ground between platforms
     const enemyPositions: { x: number; y: number }[] = [];
-    
+
     // Add enemies at intervals along the ground
     const numEnemies = 5; // Number of enemies to spawn
     const spacing = LEVEL_WIDTH / (numEnemies + 1);
-    
+
     for (let i = 1; i <= numEnemies; i++) {
       const x = spacing * i;
       // Avoid spawning too close to player start position
@@ -692,26 +692,19 @@ export class GameScene extends Phaser.Scene {
     const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
     const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    // --- NEW LOGIC STARTS HERE ---
-
-    // 1. Check if player is falling (velocity Y > 0)
+    // 1. Player must be falling (velocity Y > 0)
     const isFalling = playerBody.velocity.y > 0;
 
-    // 2. Check position: Are player's feet above the enemy's center?
-    // We use center.y instead of top to be more forgiving if the player overlaps deep
+    // 2. Player's feet must be above the enemy's vertical CENTER.
+    // This is much safer than checking "top" because it works even if you overlap slightly.
     const isAbove = playerBody.bottom <= enemyBody.center.y;
 
-    // Combine them
-    const isStomping = isFalling && isAbove;
-
-    // --- NEW LOGIC ENDS HERE ---
-
-    if (isStomping) {
-      // Defeat enemy and bounce player up - make player briefly invulnerable to prevent re-collision
+    if (isFalling && isAbove) {
+      // SUCCESS: Stomp the enemy
       this.defeatEnemy(enemySprite);
-      playerBody.setVelocityY(-350); // Bounce up
+      playerBody.setVelocityY(-350); // Bounce the player up
     } else if (!this.isInvulnerable) {
-      // Side collision - take damage
+      // FAIL: Player gets hit
       this.takeDamage();
     }
   }
