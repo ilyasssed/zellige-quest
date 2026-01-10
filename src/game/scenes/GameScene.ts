@@ -175,38 +175,40 @@ export class GameScene extends Phaser.Scene {
     const STANDARD_WIDTH = 128; // ~2 tiles
     const DOUBLE_WIDTH = 256; // ~4 tiles
 
-    // Reduced gap from 5 steps to 3 steps (60px instead of 100px)
-    const gap3steps = 3 * STEP_PIXELS; // 60px
+    // 1. Define Character Width
+    // Based on your scale(0.15), the physics body is roughly 45-50px wide.
+    const CHAR_WIDTH = 50;
 
-    // --- PART 1: The First 3 Platforms ---
+    // 2. Calculate Spacing based on character size
+    const GAP_MIN = CHAR_WIDTH * 1.5; // 75px
+    const GAP_MAX = CHAR_WIDTH * 3.0; // 150px
+
+    // --- PART 1: The Tight Jumps (Min Gap) ---
 
     // 1. Platform at Level 1
-    currentX += gap3steps;
+    currentX += GAP_MIN;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    // 2. Platform at Level 2 ("after it... same distance")
-    currentX += STANDARD_WIDTH + gap3steps;
+    // 2. Platform at Level 2 (Consecutive -> Min Gap)
+    currentX += STANDARD_WIDTH + GAP_MIN;
     this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_2_Y, "sweet");
 
-    // 3. Platform at Level 1 ("same distance")
-    currentX += STANDARD_WIDTH + gap3steps;
+    // 3. Platform at Level 1 (Consecutive -> Min Gap)
+    currentX += STANDARD_WIDTH + GAP_MIN;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    // --- PART 2: The Big Jump ---
+    // --- PART 2: The Big Jump (Max Gap) ---
 
-    // "Then move for 20 steps"
-    const gap20steps = 20 * STEP_PIXELS; // 400px
-    currentX += STANDARD_WIDTH + gap20steps;
-
-    // 4. Platform at Level 1 (Shortened to STANDARD_WIDTH)
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
+    // 4. Platform at Level 1 (SHORT Platform, Max Gap distance)
+    currentX += STANDARD_WIDTH + GAP_MAX;
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH); // Standard = Short
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    // 5. Platform at Level 2 (Double Width)
-    currentX += STANDARD_WIDTH + gap3steps;
+    // 5. Platform at Level 2 (Double Width, Min Gap after the landing)
+    currentX += STANDARD_WIDTH + GAP_MIN;
     this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
 
     // "Second having 2 sweets separated by half the platform size"
@@ -214,8 +216,8 @@ export class GameScene extends Phaser.Scene {
     this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
     this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
 
-    // 6. Platform at Level 3
-    currentX += DOUBLE_WIDTH + gap3steps;
+    // 6. Platform at Level 3 (Min Gap)
+    currentX += DOUBLE_WIDTH + GAP_MIN;
     this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_3_Y, "tea");
   }
