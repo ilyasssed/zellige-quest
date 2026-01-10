@@ -292,7 +292,7 @@ export class GameScene extends Phaser.Scene {
     cursor = this.createBlock1(cursor);
 
     // --- Create Door at End ---
-    this.createDoor(cursor + 200);
+    this.createDoor(LEVEL_WIDTH - 200);
   }
 
   createDoor(x: number): void {
@@ -333,17 +333,25 @@ export class GameScene extends Phaser.Scene {
 
   handleReachDoor(): void {
     if (this.isLevelComplete) return;
-    this.isLevelComplete = true; // This flag will now stop inputs in update()
+
+    // --- Player must be close to the center of the door ---
+    // The door's origin is (0.5, 1), so door.x is its horizontal center.
+    // We check if the distance between player and door center is small (e.g. < 20px)
+    if (Math.abs(this.player.x - this.door.x) > 20) {
+      return; // Too far from center, ignore this overlap event
+    }
+    // ----------------------------------------------------------------
+
+    this.isLevelComplete = true;
 
     // 1. Play animation
     this.door.play("door-open");
 
-    // 2. Stop the player gently instead of freezing the universe
-    //    Remove: this.physics.pause();
+    // 2. Stop the player
     this.player.setVelocityX(0);
     this.player.anims.stop();
     this.player.setTexture("player-static");
-    this.player.setTint(0x00ff00);
+    this.player.setTint(0x00ff00); // Green tint for success
 
     // 3. Wait 1s then finish level
     this.time.delayedCall(1000, () => {
