@@ -46,7 +46,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('background', '/images/background.png');
     this.load.image('tea', '/images/tea.png');
     this.load.image('sweet', '/images/sweet.png');
-    this.load.image('cockroach', '/images/cockroach.png');
+    this.load.image('table', '/images/table.png');
     this.load.image('sandal', '/images/projectile.png');
 
     // Generate sound effects
