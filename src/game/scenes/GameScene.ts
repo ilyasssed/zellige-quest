@@ -357,7 +357,7 @@ export class GameScene extends Phaser.Scene {
     for (let i = 1; i <= numEnemies; i++) {
       const x = spacing * i;
       if (x > 300) {
-        const enemy = this.enemies.create(x, GROUND_Y - 100, "table") as Phaser.Physics.Arcade.Sprite;
+        const enemy = this.enemies.create(x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
 
         const width = enemy.width;
         const height = enemy.height;
