@@ -295,18 +295,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   createDoor(x: number): void {
-    // Create the door sprite using 'door1' (closed state)
-    this.door = this.physics.add.sprite(x, GROUND_Y, "door1");
+    // --- HOW TO ADAPT THIS ---
+    // Change 'yAdjustment' to move the door up or down.
+    // - 10 : Moves the door UP by 10 pixels
+    // + 10 : Moves the door DOWN by 10 pixels
+    //   0  : Sits exactly on the calculated ground line
+    const yAdjustment = -2;
 
-    // --- ADD THIS LINE ---
+    // Create the door sprite
+    // We add the adjustment to GROUND_Y
+    this.door = this.physics.add.sprite(x, GROUND_Y + yAdjustment, "door1");
+
+    // --- SCALING ---
+    // Change DOOR_SCALE at the top of the file to change size
     this.door.setScale(DOOR_SCALE);
-    // ---------------------
 
+    // --- ANCHOR POINT ---
+    // (0.5, 1) means:
+    // 0.5 = Center horizontally
+    // 1   = Bottom vertically
+    // This ensures the "feet" of the door sit on the Y coordinate
     this.door.setOrigin(0.5, 1);
+
     this.door.setImmovable(true);
     (this.door.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
 
-    // Optional: Refresh body if the physics box is wrong after scaling
+    // Refresh body to match scale/position
     this.door.refreshBody();
   }
 
