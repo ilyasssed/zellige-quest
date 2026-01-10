@@ -300,7 +300,7 @@ export class GameScene extends Phaser.Scene {
     // - 10 : Moves the door UP by 10 pixels
     // + 10 : Moves the door DOWN by 10 pixels
     //   0  : Sits exactly on the calculated ground line
-    const yAdjustment = -2;
+    const yAdjustment = -32;
 
     // Create the door sprite
     // We add the adjustment to GROUND_Y
