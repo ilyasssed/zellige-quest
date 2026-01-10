@@ -34,6 +34,7 @@ const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYE
 const PLATFORM_HEIGHT = 32;
 const STEP_PIXELS = 20; // 1 step = 20px
 const PLATFORM_SCALE = 0.15; // Scale for the table image (as requested in original code)
+const DOOR_SCALE = 0.5; // Scale for the door
 
 // Level Y positions
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
@@ -296,9 +297,17 @@ export class GameScene extends Phaser.Scene {
   createDoor(x: number): void {
     // Create the door sprite using 'door1' (closed state)
     this.door = this.physics.add.sprite(x, GROUND_Y, "door1");
+
+    // --- ADD THIS LINE ---
+    this.door.setScale(DOOR_SCALE);
+    // ---------------------
+
     this.door.setOrigin(0.5, 1);
     this.door.setImmovable(true);
     (this.door.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+
+    // Optional: Refresh body if the physics box is wrong after scaling
+    this.door.refreshBody();
   }
 
   handleReachDoor(): void {
