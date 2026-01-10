@@ -33,7 +33,7 @@ const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYE
 // Dimensions
 const PLATFORM_HEIGHT = 32;
 const STEP_PIXELS = 20; // 1 step = 20px
-const PLATFORM_SCALE = 0.5; // Scale for the table image
+const PLATFORM_SCALE = 0.1; // Scale for the table image
 
 // Level Y positions
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
