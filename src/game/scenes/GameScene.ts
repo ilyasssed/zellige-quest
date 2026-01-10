@@ -175,23 +175,23 @@ export class GameScene extends Phaser.Scene {
     const STANDARD_WIDTH = 128; // ~2 tiles
     const DOUBLE_WIDTH = 256; // ~4 tiles
 
-    // "5 steps after the start"
-    const gap5steps = 5 * STEP_PIXELS; // 100px
+    // Reduced gap from 5 steps to 3 steps (60px instead of 100px)
+    const gap3steps = 3 * STEP_PIXELS; // 60px
 
     // --- PART 1: The First 3 Platforms ---
 
     // 1. Platform at Level 1
-    currentX += gap5steps;
+    currentX += gap3steps;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
     // 2. Platform at Level 2 ("after it... same distance")
-    currentX += STANDARD_WIDTH + gap5steps;
+    currentX += STANDARD_WIDTH + gap3steps;
     this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_2_Y, "sweet");
 
     // 3. Platform at Level 1 ("same distance")
-    currentX += STANDARD_WIDTH + gap5steps;
+    currentX += STANDARD_WIDTH + gap3steps;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
@@ -201,12 +201,12 @@ export class GameScene extends Phaser.Scene {
     const gap20steps = 20 * STEP_PIXELS; // 400px
     currentX += STANDARD_WIDTH + gap20steps;
 
-    // 4. Platform at Level 1 (Double Width)
-    this.addPlatformData(currentX, LEVEL_1_Y, DOUBLE_WIDTH);
+    // 4. Platform at Level 1 (Shortened to STANDARD_WIDTH)
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
     // 5. Platform at Level 2 (Double Width)
-    currentX += DOUBLE_WIDTH + gap5steps;
+    currentX += STANDARD_WIDTH + gap3steps;
     this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
 
     // "Second having 2 sweets separated by half the platform size"
@@ -215,7 +215,7 @@ export class GameScene extends Phaser.Scene {
     this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
 
     // 6. Platform at Level 3
-    currentX += DOUBLE_WIDTH + gap5steps;
+    currentX += DOUBLE_WIDTH + gap3steps;
     this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_3_Y, "tea");
   }
