@@ -1,8 +1,8 @@
-import Phaser from 'phaser';
+import Phaser from "phaser";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'BootScene' });
+    super({ key: "BootScene" });
   }
 
   preload(): void {
@@ -11,44 +11,54 @@ export class BootScene extends Phaser.Scene {
 
     const progressBar = this.add.graphics();
     const progressBox = this.add.graphics();
-    progressBox.fillStyle(0x8B2942, 0.8);
+    progressBox.fillStyle(0x8b2942, 0.8);
     progressBox.fillRect(width / 2 - 160, height / 2, 320, 50);
 
     const loadingText = this.make.text({
       x: width / 2,
       y: height / 2 - 50,
-      text: 'Loading...',
+      text: "Loading...",
       style: {
-        font: '32px Amatic SC',
-        color: '#8B2942',
+        font: "32px Amatic SC",
+        color: "#8B2942",
       },
     });
     loadingText.setOrigin(0.5, 0.5);
 
-    this.load.on('progress', (value: number) => {
+    this.load.on("progress", (value: number) => {
       progressBar.clear();
-      progressBar.fillStyle(0xD4A574, 1);
+      progressBar.fillStyle(0xd4a574, 1);
       progressBar.fillRect(width / 2 - 150, height / 2 + 10, 300 * value, 30);
     });
 
-    this.load.on('complete', () => {
+    this.load.on("complete", () => {
       progressBar.destroy();
       progressBox.destroy();
       loadingText.destroy();
     });
 
     // Load player static and walking frames
-    this.load.image('player-static', '/images/player-static.png');
+    this.load.image("player-static", "/images/player-static.png");
     for (let i = 1; i <= 9; i++) {
       this.load.image(`player-moving${i}`, `/images/player-moving${i}.png`);
     }
-    this.load.audio('soundtrack', '/audio/soundtrack.mp3');
-    this.load.image('background', '/images/background.png');
-    this.load.image('tea', '/images/tea.png');
-    this.load.image('sweet', '/images/sweet.png');
-    this.load.image('cockroach', '/images/cockroach.png');
-    this.load.image('sandal', '/images/projectile.png');
-    this.load.image('platform', '/images/table.png');
+
+    // Audio
+    this.load.audio("soundtrack", "/audio/soundtrack.mp3");
+
+    // Environment & Items
+    this.load.image("background", "/images/background.png");
+    this.load.image("tea", "/images/tea.png");
+    this.load.image("sweet", "/images/sweet.png");
+    this.load.image("cockroach", "/images/cockroach.png");
+    this.load.image("sandal", "/images/projectile.png");
+    this.load.image("platform", "/images/table.png");
+
+    // --- NEW: Load Door Images ---
+    this.load.image("door1", "/images/door1.png");
+    this.load.image("door2", "/images/door2.png");
+    this.load.image("door3", "/images/door3.png");
+    // -----------------------------
 
     // Generate sound effects
     this.generateMunchSound();
@@ -66,78 +76,77 @@ export class BootScene extends Phaser.Scene {
     this.generateHeartSprite();
   }
 
-
   generateGroundSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-    
+
     // Orange brick pattern like reference
-    const brickColor = 0xCC6B2C;
-    const brickDark = 0xA85520;
-    const mortarColor = 0x8B4513;
-    
+    const brickColor = 0xcc6b2c;
+    const brickDark = 0xa85520;
+    const mortarColor = 0x8b4513;
+
     // Fill mortar/grout background
     graphics.fillStyle(mortarColor);
     graphics.fillRect(0, 0, 64, 64);
-    
+
     // Draw brick pattern - 4 rows
     const brickWidth = 28;
     const brickHeight = 12;
     const gap = 3;
-    
+
     for (let row = 0; row < 4; row++) {
       const yPos = row * (brickHeight + gap) + 2;
       const offset = row % 2 === 0 ? 0 : -14;
-      
+
       for (let x = offset; x < 64; x += brickWidth + gap) {
         graphics.fillStyle(brickColor);
         graphics.fillRoundedRect(x + 2, yPos, brickWidth, brickHeight, 2);
         // Highlight
-        graphics.fillStyle(0xE07830);
+        graphics.fillStyle(0xe07830);
         graphics.fillRect(x + 4, yPos + 2, brickWidth - 4, 3);
         // Shadow
         graphics.fillStyle(brickDark);
         graphics.fillRect(x + 4, yPos + brickHeight - 2, brickWidth - 4, 2);
       }
     }
-    
-    graphics.generateTexture('ground', 64, 64);
+
+    graphics.generateTexture("ground", 64, 64);
     graphics.destroy();
   }
 
   generateLanternSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0xD4A574);
+    graphics.fillStyle(0xd4a574);
     graphics.fillRect(10, 0, 12, 4);
-    graphics.fillStyle(0x8B2942);
+    graphics.fillStyle(0x8b2942);
     graphics.fillRect(6, 4, 20, 6);
     graphics.fillRect(4, 10, 24, 32);
     graphics.fillRect(6, 42, 20, 6);
-    graphics.fillStyle(0xFFD700);
+    graphics.fillStyle(0xffd700);
     graphics.fillRect(8, 14, 6, 24);
     graphics.fillRect(18, 14, 6, 24);
-    graphics.generateTexture('lantern', 32, 48);
+    graphics.generateTexture("lantern", 32, 48);
     graphics.destroy();
   }
 
   generateArchSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0xD4A574);
+    graphics.fillStyle(0xd4a574);
     graphics.fillRect(0, 48, 16, 80);
     graphics.fillRect(112, 48, 16, 80);
-    graphics.fillStyle(0xD4A574);
+    graphics.fillStyle(0xd4a574);
     graphics.beginPath();
     graphics.arc(64, 48, 64, Math.PI, 0, false);
     graphics.closePath();
     graphics.fillPath();
-    graphics.fillStyle(0x87CEEB);
+    graphics.fillStyle(0x87ceeb);
     graphics.beginPath();
     graphics.arc(64, 48, 48, Math.PI, 0, false);
     graphics.closePath();
     graphics.fillPath();
-    graphics.fillStyle(0x8B2942);
+    graphics.fillStyle(0x8b2942);
     graphics.fillRect(4, 56, 8, 8);
     graphics.fillRect(116, 56, 8, 8);
-    graphics.generateTexture('arch', 128, 128);
+    graphics.generateTexture("arch", 128, 128);
     graphics.destroy();
   }
 
@@ -161,7 +170,7 @@ export class BootScene extends Phaser.Scene {
     // Convert to WAV and create data URL
     const wavBlob = this.bufferToWav(buffer);
     const url = URL.createObjectURL(wavBlob);
-    this.load.audio('munch', url);
+    this.load.audio("munch", url);
   }
 
   generateOuchSound(): void {
@@ -182,7 +191,7 @@ export class BootScene extends Phaser.Scene {
 
     const wavBlob = this.bufferToWav(buffer);
     const url = URL.createObjectURL(wavBlob);
-    this.load.audio('ouch', url);
+    this.load.audio("ouch", url);
   }
 
   generateEnemyDeathSound(): void {
@@ -204,7 +213,7 @@ export class BootScene extends Phaser.Scene {
 
     const wavBlob = this.bufferToWav(buffer);
     const url = URL.createObjectURL(wavBlob);
-    this.load.audio('enemyDeath', url);
+    this.load.audio("enemyDeath", url);
   }
 
   bufferToWav(buffer: AudioBuffer): Blob {
@@ -228,10 +237,10 @@ export class BootScene extends Phaser.Scene {
       }
     };
 
-    writeString(0, 'RIFF');
+    writeString(0, "RIFF");
     view.setUint32(4, bufferSize - 8, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
     view.setUint32(16, 16, true);
     view.setUint16(20, format, true);
     view.setUint16(22, numChannels, true);
@@ -239,51 +248,66 @@ export class BootScene extends Phaser.Scene {
     view.setUint32(28, sampleRate * blockAlign, true);
     view.setUint16(32, blockAlign, true);
     view.setUint16(34, bitDepth, true);
-    writeString(36, 'data');
+    writeString(36, "data");
     view.setUint32(40, dataSize, true);
 
     // Write audio data
     let offset = 44;
     for (let i = 0; i < samples; i++) {
       const sample = Math.max(-1, Math.min(1, data[i]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
       offset += 2;
     }
 
-    return new Blob([arrayBuffer], { type: 'audio/wav' });
+    return new Blob([arrayBuffer], { type: "audio/wav" });
   }
 
   generateHeartSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-    graphics.fillStyle(0xC41E3A);
+    graphics.fillStyle(0xc41e3a);
     graphics.fillCircle(8, 8, 6);
     graphics.fillCircle(16, 8, 6);
     graphics.fillTriangle(2, 10, 22, 10, 12, 22);
-    graphics.generateTexture('heart', 24, 24);
+    graphics.generateTexture("heart", 24, 24);
     graphics.destroy();
   }
 
   create(): void {
     // Create player walk animation
-    if (!this.anims.exists('player-walk')) {
+    if (!this.anims.exists("player-walk")) {
       this.anims.create({
-        key: 'player-walk',
+        key: "player-walk",
         frames: [
-          { key: 'player-moving1' },
-          { key: 'player-moving2' },
-          { key: 'player-moving3' },
-          { key: 'player-moving4' },
-          { key: 'player-moving5' },
-          { key: 'player-moving6' },
-          { key: 'player-moving7' },
-          { key: 'player-moving8' },
-          { key: 'player-moving9' },
+          { key: "player-moving1" },
+          { key: "player-moving2" },
+          { key: "player-moving3" },
+          { key: "player-moving4" },
+          { key: "player-moving5" },
+          { key: "player-moving6" },
+          { key: "player-moving7" },
+          { key: "player-moving8" },
+          { key: "player-moving9" },
         ],
         frameRate: 12,
         repeat: -1,
       });
     }
 
-    this.scene.start('MenuScene');
+    // --- NEW: Door Animation ---
+    if (!this.anims.exists("door-open")) {
+      this.anims.create({
+        key: "door-open",
+        frames: [
+          { key: "door1" }, // Closed
+          { key: "door2" }, // Half-open
+          { key: "door3" }, // Open
+        ],
+        frameRate: 5, // Speed of opening
+        repeat: 0, // Do not repeat, stop at door3
+      });
+    }
+    // ---------------------------
+
+    this.scene.start("MenuScene");
   }
 }

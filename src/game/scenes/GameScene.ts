@@ -33,7 +33,7 @@ const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYE
 // Dimensions
 const PLATFORM_HEIGHT = 32;
 const STEP_PIXELS = 20; // 1 step = 20px
-const PLATFORM_SCALE = 0.15; // Scale for the table image
+const PLATFORM_SCALE = 0.5; // Scale for the table image
 
 // Level Y positions
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
@@ -48,6 +48,10 @@ export class GameScene extends Phaser.Scene {
   private teas!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
   private sandals!: Phaser.Physics.Arcade.Group;
+
+  // New Door property
+  private door!: Phaser.Physics.Arcade.Sprite;
+  private isLevelComplete = false;
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private attackKey!: Phaser.Input.Keyboard.Key;
@@ -87,6 +91,7 @@ export class GameScene extends Phaser.Scene {
     this.isInvulnerable = false;
     this.canThrow = true;
     this.isGameOver = false;
+    this.isLevelComplete = false; // Reset door state
     this.platformData = [];
     this.itemsToSpawn = [];
 
@@ -146,6 +151,11 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.teas, this.collectTea, undefined, this);
     this.physics.add.overlap(this.player, this.enemies, this.handleEnemyCollision, undefined, this);
     this.physics.add.overlap(this.sandals, this.enemies, this.sandalHitEnemy, undefined, this);
+
+    // Door Overlap
+    if (this.door) {
+      this.physics.add.overlap(this.player, this.door, this.handleReachDoor, undefined, this);
+    }
 
     // Input
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -276,6 +286,38 @@ export class GameScene extends Phaser.Scene {
 
     // 9. BLOCK 1 (Again)
     cursor = this.createBlock1(cursor);
+
+    // --- END: CREATE DOOR ---
+    // Place door 200px after the last block
+    this.createDoor(cursor + 200);
+  }
+
+  createDoor(x: number): void {
+    // Create the door at the start frame (door1)
+    this.door = this.physics.add.sprite(x, GROUND_Y, "door1");
+    this.door.setOrigin(0.5, 1); // Anchor at bottom center
+    // Set physics properties (static, so it doesn't fall)
+    this.door.setImmovable(true);
+    (this.door.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+  }
+
+  handleReachDoor(): void {
+    if (this.isLevelComplete) return;
+    this.isLevelComplete = true;
+
+    // 1. Play animation
+    this.door.play("door-open");
+
+    // 2. Stop player interaction/physics
+    this.physics.pause();
+    this.player.setTint(0x00ff00); // Optional: tint player green for success
+
+    // 3. Wait and Win
+    this.time.delayedCall(1000, () => {
+      // Add bonus score for finishing
+      this.gameState.score += 1000;
+      this.scene.start("GameOverScene", { score: this.gameState.score });
+    });
   }
 
   addItemData(x: number, y: number, type: "sweet" | "tea"): void {
@@ -751,10 +793,9 @@ export class GameScene extends Phaser.Scene {
         }
       }
     });
-    if (this.player.x >= LEVEL_WIDTH - 100) {
-      this.gameState.score += 1000;
-      this.gameOver();
-    }
+    // REMOVED THE OLD WIN CONDITION FROM HERE
+    // The door handler now manages the win state
+
     this.sandals.getChildren().forEach((child) => {
       const sandal = child as Phaser.Physics.Arcade.Sprite;
       const startX = sandal.getData("startX");
