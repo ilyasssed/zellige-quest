@@ -20,8 +20,8 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
-// Increased width to fit the longer sequence
-const LEVEL_WIDTH = 4500;
+// Increased width to fit designed level
+const LEVEL_WIDTH = 3000;
 const LEVEL_HEIGHT = 400;
 const GROUND_Y = LEVEL_HEIGHT - 32;
 
@@ -33,6 +33,10 @@ const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYE
 // Dimensions
 const PLATFORM_HEIGHT = 32;
 const STEP_PIXELS = 20; // 1 step = 20px
+
+// --- NEW CONSTANT FOR SCALING ---
+const PLATFORM_SCALE = 0.2; // <--- CHANGE THIS to make table bigger/smaller
+// --------------------------------
 
 // Level Y positions
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
@@ -169,142 +173,108 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500);
   }
 
-  // --- REUSABLE BLOCK BUILDERS ---
+  // --- REUSABLE BLOCK BUILDERS (Using Start/End Logic) ---
 
-  /**
-   * Adds Bloc 1: Lvl 1 -> Lvl 2 -> Lvl 1 (All Standard Width)
-   * Internal Spacing: 1.5 char width
-   */
-  addBlock1(prevX: number, gap: number, prevWidth: number): number {
-    const STANDARD_WIDTH = 128;
-    const CHAR_WIDTH = 50;
-    const BLOCK_GAP = CHAR_WIDTH * 1.5; // 75px
-
-    let currentX = prevX;
-
-    // 1. Platform 1 (Level 1)
-    // Offset calculation: Center-to-Center = (PrevWidth/2) + GAP + (NewWidth/2)
-    currentX += prevWidth / 2 + gap + STANDARD_WIDTH / 2;
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_1_Y, "sweet");
-
-    // 2. Platform 2 (Level 2)
-    currentX += STANDARD_WIDTH + BLOCK_GAP; // Standard to Standard transition
-    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_2_Y, "sweet");
-
-    // 3. Platform 3 (Level 1)
-    currentX += STANDARD_WIDTH + BLOCK_GAP;
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_1_Y, "sweet");
-
-    return currentX; // Return center of last platform
-  }
-
-  /**
-   * Adds Bloc 2: Lvl 1 (Std) -> Lvl 2 (Double) -> Lvl 3 (Std)
-   * Internal Spacing: 1.5 char width
-   * Items: Sweets only (Tea is handled manually outside)
-   */
-  addBlock2(prevX: number, gap: number, prevWidth: number): number {
-    const STANDARD_WIDTH = 128;
-    const DOUBLE_WIDTH = 256;
-    const CHAR_WIDTH = 50;
-    const BLOCK_GAP = CHAR_WIDTH * 1.5; // 75px
-
-    let currentX = prevX;
-
-    // 1. Platform 1 (Level 1, Standard)
-    currentX += prevWidth / 2 + gap + STANDARD_WIDTH / 2;
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_1_Y, "sweet");
-
-    // 2. Platform 2 (Level 2, Double Width)
-    // Offset: Half Standard + Gap + Half Double
-    currentX += STANDARD_WIDTH / 2 + BLOCK_GAP + DOUBLE_WIDTH / 2;
-    this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
-
-    // Two sweets separated by half platform size
-    const separation = DOUBLE_WIDTH / 2;
-    this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
-    this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
-
-    // 3. Platform 3 (Level 3, Standard)
-    // Offset: Half Double + Gap + Half Standard
-    currentX += DOUBLE_WIDTH / 2 + BLOCK_GAP + STANDARD_WIDTH / 2;
-    this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_3_Y, "sweet");
-
-    return currentX; // Return center of last platform
-  }
+  // NOTE: width inputs here (like 128) are the target Logical Widths.
+  // The createPlatforms function handles filling that width with scaled sprites.
 
   buildDesignedLevel(): void {
-    const CHAR_WIDTH = 50;
     const STANDARD_WIDTH = 128;
     const DOUBLE_WIDTH = 256;
+    const CHAR_WIDTH = 50;
 
-    // Spacing definitions
-    const GAP_SMALL = CHAR_WIDTH * 1.5; // ~75px
-    const GAP_10_STEPS = 10 * STEP_PIXELS; // 200px
-    const GAP_20_STEPS = 20 * STEP_PIXELS; // 400px
+    // Spacing constants
+    const GAP_SMALL = CHAR_WIDTH * 1.5; // 75px
+    const GAP_BLOCKS = 20 * STEP_PIXELS; // 400px (20 steps)
 
-    // Start point
-    let currentX = 200;
-    let lastWidth = 0; // No previous platform width at start
+    // Helper to add platform by Start Point -> Length -> End Point
+    const addPlatform = (startX: number, y: number, width: number, itemType?: "sweet" | "tea") => {
+      const centerX = startX + width / 2;
+      this.addPlatformData(centerX, y, width);
 
-    // --- SEQUENCE START ---
+      if (itemType === "sweet") {
+        if (width === DOUBLE_WIDTH) {
+          const sep = width / 2;
+          this.addItemData(centerX - sep / 2, y, "sweet");
+          this.addItemData(centerX + sep / 2, y, "sweet");
+        } else {
+          this.addItemData(centerX, y, "sweet");
+        }
+      } else if (itemType === "tea") {
+        this.addItemData(centerX, y, "tea");
+      }
+      return startX + width; // Return End Point
+    };
 
-    // 1. BLOC 1
-    // (Lvl 1 -> 2 -> 1)
-    currentX = this.addBlock1(currentX, 0, 0);
-    lastWidth = STANDARD_WIDTH; // Last plat of Block 1 is Standard
+    // --- BLOCK 1 ---
+    let cursor = 200; // Start point
 
-    // 2. ONE PLATFORM (Level 2) - WITH TEA
-    // Separated by 1.5 char width
-    currentX += lastWidth / 2 + GAP_SMALL + STANDARD_WIDTH / 2;
-    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_2_Y, "tea"); // THE ONLY TEA
-    lastWidth = STANDARD_WIDTH;
+    // Platform 1 (Lvl 1)
+    let p1End = addPlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
 
-    // 3. BLOC 2
-    // Separated by 10 steps
-    currentX = this.addBlock2(currentX, GAP_10_STEPS, lastWidth);
-    lastWidth = STANDARD_WIDTH; // Last plat of Block 2 is Standard (Lvl 3)
+    // Platform 2 (Lvl 2) - Starts 1.5 char after P1 End
+    let p2Start = p1End + GAP_SMALL;
+    let p2End = addPlatform(p2Start, LEVEL_2_Y, STANDARD_WIDTH, "sweet");
 
-    // 4. BLOC 2
-    // Separated by 20 steps
-    currentX = this.addBlock2(currentX, GAP_20_STEPS, lastWidth);
-    lastWidth = STANDARD_WIDTH;
+    // Platform 3 (Lvl 1) - Starts 1.5 char after P2 End
+    let p3Start = p2End + GAP_SMALL;
+    let p3End = addPlatform(p3Start, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
 
-    // 5. BLOC 1
-    // Separated by 10 steps
-    currentX = this.addBlock1(currentX, GAP_10_STEPS, lastWidth);
-    lastWidth = STANDARD_WIDTH;
+    // --- MIDDLE TEA PLATFORM ---
+    let block2StartPoint = p3End + GAP_BLOCKS;
+    let gapCenter = (p3End + block2StartPoint) / 2;
+    let midPlatStart = gapCenter - STANDARD_WIDTH / 2;
+    addPlatform(midPlatStart, LEVEL_3_Y, STANDARD_WIDTH, "tea");
+
+    // --- BLOCK 2 ---
+    cursor = block2StartPoint;
+
+    // Platform 4 (Lvl 1)
+    let p4End = addPlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
+
+    // Platform 5 (Lvl 2) - DOUBLE WIDTH
+    let p5Start = p4End + GAP_SMALL;
+    let p5End = addPlatform(p5Start, LEVEL_2_Y, DOUBLE_WIDTH, "sweet");
+
+    // Platform 6 (Lvl 3)
+    let p6Start = p5End + GAP_SMALL;
+    addPlatform(p6Start, LEVEL_3_Y, STANDARD_WIDTH, "sweet");
   }
 
-  // Helper to store platform coordinates
   addPlatformData(x: number, y: number, width: number): void {
     this.platformData.push({ x, y, width });
   }
 
-  // Helper to store item coordinates
   addItemData(x: number, y: number, type: "sweet" | "tea"): void {
     this.itemsToSpawn.push({ x, y: y - 50, type });
   }
 
+  // --- UPDATED CREATE PLATFORMS TO HANDLE SCALE ---
   createPlatforms(): void {
+    // 1. Get dimensions of the raw table image
+    const texture = this.textures.get("platform");
+    const rawWidth = texture.getSourceImage().width;
+
+    // 2. Calculate the "Effective" width based on the scale you set
+    const effectiveTileWidth = rawWidth * PLATFORM_SCALE;
+
     this.platformData.forEach((data) => {
-      const tileWidth = 64;
-      const tilesNeeded = Math.ceil(data.width / tileWidth);
-      const startX = data.x - ((tilesNeeded - 1) * tileWidth) / 2;
+      // 3. Calculate how many scaled tables fit in the desired logical width
+      const tilesNeeded = Math.ceil(data.width / effectiveTileWidth);
+
+      // 4. Calculate start X based on effective width
+      const startX = data.x - ((tilesNeeded - 1) * effectiveTileWidth) / 2;
 
       for (let i = 0; i < tilesNeeded; i++) {
         const platform = this.platforms.create(
-          startX + i * tileWidth,
+          startX + i * effectiveTileWidth,
           data.y,
           "platform",
         ) as Phaser.Physics.Arcade.Sprite;
-        platform.refreshBody();
+
+        // 5. Apply Scale and Refresh Body
+        platform.setScale(PLATFORM_SCALE);
+        platform.refreshBody(); // IMPORTANT: Updates physics box to match the scaled image
       }
     });
   }
@@ -317,7 +287,6 @@ export class GameScene extends Phaser.Scene {
         this.createTea(item.x, item.y);
       }
     });
-
     this.spawnEnemies();
   }
 
@@ -363,7 +332,7 @@ export class GameScene extends Phaser.Scene {
         const height = enemy.height;
         enemy.setScale(0.1);
 
-        const hitWidth = width * 0.6;
+        const hitWidth = width * 0.4;
         const hitHeight = height * 0.5;
 
         enemy.setSize(hitWidth, hitHeight);
