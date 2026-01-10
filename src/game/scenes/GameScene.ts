@@ -128,7 +128,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setGravityY(600);
-    this.player.setDepth(5);
+    this.player.setDepth(10);
 
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     const spriteHeight = this.player.height;
@@ -307,6 +307,12 @@ export class GameScene extends Phaser.Scene {
     // We add the adjustment to GROUND_Y
     this.door = this.physics.add.sprite(x, GROUND_Y + yAdjustment, "door1");
 
+    // Depth 0: Background
+    // Depth 1: Platforms/Items
+    // Depth 10: Player (default is usually effectively higher because it's created last)
+    this.door.setDepth(0);
+    // ---------------------
+
     // --- SCALING ---
     // Change DOOR_SCALE at the top of the file to change size
     this.door.setScale(DOOR_SCALE);
@@ -327,16 +333,19 @@ export class GameScene extends Phaser.Scene {
 
   handleReachDoor(): void {
     if (this.isLevelComplete) return;
-    this.isLevelComplete = true;
+    this.isLevelComplete = true; // This flag will now stop inputs in update()
 
-    // Play the open animation defined in BootScene
+    // 1. Play animation
     this.door.play("door-open");
 
-    // Stop player
-    this.physics.pause();
+    // 2. Stop the player gently instead of freezing the universe
+    //    Remove: this.physics.pause();
+    this.player.setVelocityX(0);
+    this.player.anims.stop();
+    this.player.setTexture("player-static");
     this.player.setTint(0x00ff00);
 
-    // Wait 1s then finish level
+    // 3. Wait 1s then finish level
     this.time.delayedCall(1000, () => {
       this.gameState.score += 1000;
       this.scene.start("GameOverScene", { score: this.gameState.score });
@@ -417,7 +426,6 @@ export class GameScene extends Phaser.Scene {
         const width = enemy.width;
         const height = enemy.height;
         enemy.setScale(0.1);
-        enemy.setDepth(5);
 
         // --- FIXED HITBOX: Made narrower to prevent weird jump kills ---
         const hitWidth = width * 0.4;
