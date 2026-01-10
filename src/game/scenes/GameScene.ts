@@ -176,48 +176,49 @@ export class GameScene extends Phaser.Scene {
     const DOUBLE_WIDTH = 256; // ~4 tiles
 
     // 1. Define Character Width
-    // Based on your scale(0.15), the physics body is roughly 45-50px wide.
     const CHAR_WIDTH = 50;
 
-    // 2. Calculate Spacing based on character size
-    const GAP_MIN = CHAR_WIDTH * 1.5; // 75px
-    const GAP_MAX = CHAR_WIDTH * 3.0; // 150px
+    // 2. Define Spacings
+    const GAP_SMALL = CHAR_WIDTH * 1.5; // 75px
+    const GAP_20_STEPS = 20 * STEP_PIXELS; // 400px
 
-    // --- PART 1: The Tight Jumps (Min Gap) ---
+    // --- BLOCK 1 (3 Platforms: Lvl 1 -> 2 -> 1, Standard width) ---
 
-    // 1. Platform at Level 1
-    currentX += GAP_MIN;
+    // 1. Platform 1 (Level 1)
+    currentX += GAP_SMALL;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    // 2. Platform at Level 2 (Consecutive -> Min Gap)
-    currentX += STANDARD_WIDTH + GAP_MIN;
+    // 2. Platform 2 (Level 2)
+    currentX += STANDARD_WIDTH + GAP_SMALL;
     this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_2_Y, "sweet");
 
-    // 3. Platform at Level 1 (Consecutive -> Min Gap)
-    currentX += STANDARD_WIDTH + GAP_MIN;
+    // 3. Platform 3 (Level 1)
+    currentX += STANDARD_WIDTH + GAP_SMALL;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    // --- PART 2: The Big Jump (Max Gap) ---
+    // --- GAP (20 Steps) ---
+    currentX += STANDARD_WIDTH + GAP_20_STEPS;
 
-    // 4. Platform at Level 1 (SHORT Platform, Max Gap distance)
-    currentX += STANDARD_WIDTH + GAP_MAX;
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH); // Standard = Short
+    // --- BLOCK 2 (3 Platforms: Lvl 1 -> 2 -> 3, Middle Double Width) ---
+
+    // 4. Platform 4 (Level 1, Standard)
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    // 5. Platform at Level 2 (Double Width, Min Gap after the landing)
-    currentX += STANDARD_WIDTH + GAP_MIN;
+    // 5. Platform 5 (Level 2, DOUBLE WIDTH)
+    currentX += STANDARD_WIDTH + GAP_SMALL;
     this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
 
-    // "Second having 2 sweets separated by half the platform size"
+    // Add two sweets separated by half platform size
     const separation = DOUBLE_WIDTH / 2;
     this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
     this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
 
-    // 6. Platform at Level 3 (Min Gap)
-    currentX += DOUBLE_WIDTH + GAP_MIN;
+    // 6. Platform 6 (Level 3, Standard)
+    currentX += DOUBLE_WIDTH + GAP_SMALL;
     this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_3_Y, "tea");
   }
@@ -243,7 +244,7 @@ export class GameScene extends Phaser.Scene {
         const platform = this.platforms.create(
           startX + i * tileWidth,
           data.y,
-          "platform"
+          "platform",
         ) as Phaser.Physics.Arcade.Sprite;
         platform.refreshBody();
       }
@@ -376,7 +377,10 @@ export class GameScene extends Phaser.Scene {
 
   showPauseMenu(): void {
     const { width, height } = this.cameras.main;
-    this.pauseMenu = this.add.container(width / 2, height / 2).setScrollFactor(0).setDepth(200);
+    this.pauseMenu = this.add
+      .container(width / 2, height / 2)
+      .setScrollFactor(0)
+      .setDepth(200);
     const overlay = this.add.graphics();
     overlay.fillStyle(0x000000, 0.7);
     overlay.fillRect(-width / 2, -height / 2, width, height);
@@ -385,11 +389,13 @@ export class GameScene extends Phaser.Scene {
     menuBg.fillRoundedRect(-120, -100, 240, 200, 16);
     menuBg.lineStyle(3, 0xd4a574);
     menuBg.strokeRoundedRect(-120, -100, 240, 200, 16);
-    const title = this.add.text(0, -70, "PAUSED", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "20px",
-      color: "#D4A574",
-    }).setOrigin(0.5);
+    const title = this.add
+      .text(0, -70, "PAUSED", {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: "20px",
+        color: "#D4A574",
+      })
+      .setOrigin(0.5);
     const resumeBtn = this.createMenuButton(0, -20, "▶ Resume", () => this.togglePause());
     const retryBtn = this.createMenuButton(0, 30, "↻ Retry", () => {
       this.hidePauseMenu();
@@ -407,11 +413,13 @@ export class GameScene extends Phaser.Scene {
     const bg = this.add.graphics();
     bg.fillStyle(0x8b2942, 1);
     bg.fillRoundedRect(-90, -18, 180, 36, 8);
-    const label = this.add.text(0, 0, text, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "10px",
-      color: "#FFFFFF",
-    }).setOrigin(0.5);
+    const label = this.add
+      .text(0, 0, text, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: "10px",
+        color: "#FFFFFF",
+      })
+      .setOrigin(0.5);
     btn.add([bg, label]).setSize(180, 36).setInteractive({ useHandCursor: true });
     btn.on("pointerover", () => this.tweens.add({ targets: btn, scale: 1.05, duration: 100 }));
     btn.on("pointerout", () => this.tweens.add({ targets: btn, scale: 1, duration: 100 }));
@@ -443,7 +451,7 @@ export class GameScene extends Phaser.Scene {
 
   enemyHitPlatform(
     enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+    platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
     const body = enemySprite.body as Phaser.Physics.Arcade.Body;
@@ -462,7 +470,7 @@ export class GameScene extends Phaser.Scene {
 
   collectSweet(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+    sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const sweetSprite = sweet as Phaser.Physics.Arcade.Sprite;
     this.tweens.add({
@@ -479,7 +487,7 @@ export class GameScene extends Phaser.Scene {
 
   collectTea(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    tea: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+    tea: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const teaSprite = tea as Phaser.Physics.Arcade.Sprite;
     teaSprite.destroy();
@@ -493,7 +501,7 @@ export class GameScene extends Phaser.Scene {
 
   handleEnemyCollision(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const playerSprite = player as Phaser.Physics.Arcade.Sprite;
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
@@ -532,7 +540,7 @@ export class GameScene extends Phaser.Scene {
     sandal.setScale(0.1);
     const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
     sandalBody.setAllowGravity(false);
-    sandalBody.setVelocityX(SANDAL_SPEED * direction);
+    sandalBody.setVelocityX(300 * direction);
     if (direction < 0) sandal.setFlipX(true);
     const amplitude = this.player.displayHeight / 2;
     sandal.setData({
@@ -557,7 +565,7 @@ export class GameScene extends Phaser.Scene {
 
   sandalHitEnemy(
     sandal: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     (sandal as Phaser.Physics.Arcade.Sprite).destroy();
     this.defeatEnemy(enemy as Phaser.Physics.Arcade.Sprite);
@@ -600,22 +608,26 @@ export class GameScene extends Phaser.Scene {
     hudBg.fillStyle(0x000000, 0.4);
     hudBg.fillRoundedRect(10, 10, 180, 50, 8);
     hudBg.setScrollFactor(0);
-    this.scoreText = this.add.text(20, 18, "Score: 0", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "12px",
-      color: "#FFD700",
-    }).setScrollFactor(0);
+    this.scoreText = this.add
+      .text(20, 18, "Score: 0", {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: "12px",
+        color: "#FFD700",
+      })
+      .setScrollFactor(0);
     this.livesContainer = this.add.container(20, 42).setScrollFactor(0);
     this.updateLivesDisplay();
     this.powerUpIndicator = this.add.container(680, 30).setScrollFactor(0);
     const powerUpBg = this.add.graphics();
     powerUpBg.fillStyle(0x228b22, 0.9);
     powerUpBg.fillRoundedRect(-60, -15, 120, 30, 8);
-    const powerUpText = this.add.text(0, 0, "X = THROW", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "10px",
-      color: "#FFFFFF",
-    }).setOrigin(0.5);
+    const powerUpText = this.add
+      .text(0, 0, "X = THROW", {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: "10px",
+        color: "#FFFFFF",
+      })
+      .setOrigin(0.5);
     this.powerUpIndicator.add([powerUpBg, powerUpText]).setVisible(false);
   }
 
