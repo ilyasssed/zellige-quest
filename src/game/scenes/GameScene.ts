@@ -283,21 +283,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   createPlatforms(): void {
+    // 1. Get the texture dimensions
     const texture = this.textures.get("platform");
-    const rawWidth = texture.getSourceImage().width;
-    const effectiveTileWidth = rawWidth * PLATFORM_SCALE;
+    const originalHeight = texture.getSourceImage().height;
+
+    // We keep the vertical scale consistent
+    const targetHeight = originalHeight * PLATFORM_SCALE;
+
+    // 2. Define the "Unit" width of one table
+    // This matches the STANDARD_WIDTH used in buildDesignedLevel
+    const UNIT_WIDTH = 128;
 
     this.platformData.forEach((data) => {
-      const tilesNeeded = Math.ceil(data.width / effectiveTileWidth);
-      const startX = data.x - ((tilesNeeded - 1) * effectiveTileWidth) / 2;
+      // 3. Calculate how many tables fit in this platform
+      // 128px -> 1 table
+      // 256px -> 2 tables
+      const tableCount = Math.round(data.width / UNIT_WIDTH);
 
-      for (let i = 0; i < tilesNeeded; i++) {
-        const platform = this.platforms.create(
-          startX + i * effectiveTileWidth,
-          data.y,
-          "platform",
-        ) as Phaser.Physics.Arcade.Sprite;
-        platform.setScale(PLATFORM_SCALE);
+      // 4. Calculate the starting Left Edge to center the group correctly
+      const totalWidth = tableCount * UNIT_WIDTH;
+      const leftEdge = data.x - totalWidth / 2;
+
+      for (let i = 0; i < tableCount; i++) {
+        // Calculate center X for this specific table segment
+        const spriteX = leftEdge + i * UNIT_WIDTH + UNIT_WIDTH / 2;
+
+        const platform = this.platforms.create(spriteX, data.y, "platform") as Phaser.Physics.Arcade.Sprite;
+
+        // 5. Force the sprite to be exactly 128px wide (1 unit)
+        // and the scaled height
+        platform.setDisplaySize(UNIT_WIDTH, targetHeight);
+
+        // 6. Update physics
         platform.refreshBody();
       }
     });
