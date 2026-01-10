@@ -169,68 +169,87 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500);
   }
 
-  // Defines the layout step-by-step
+  // --- LOGIC REWRITE START ---
   buildDesignedLevel(): void {
-    let currentX = 200; // Starting offset
-    const STANDARD_WIDTH = 128; // ~2 tiles
-    const DOUBLE_WIDTH = 256; // ~4 tiles
-
-    // 1. Define Character Width
+    const STANDARD_WIDTH = 128;
+    const DOUBLE_WIDTH = 256;
     const CHAR_WIDTH = 50;
 
-    // 2. Define Spacings
+    // Spacing constants
     const GAP_SMALL = CHAR_WIDTH * 1.5; // 75px
-    const GAP_20_STEPS = 20 * STEP_PIXELS; // 400px
+    const GAP_BLOCKS = 20 * STEP_PIXELS; // 400px (20 steps)
 
-    // --- BLOCK 1 (3 Platforms: Lvl 1 -> 2 -> 1, Standard width) ---
+    // Helper to add platform by Left Edge (Start Point)
+    // Returns the Right Edge (End Point)
+    const addPlatform = (startX: number, y: number, width: number, itemType?: "sweet" | "tea") => {
+      // Calculate Center for Phaser
+      const centerX = startX + width / 2;
+      this.addPlatformData(centerX, y, width);
 
-    // 1. Platform 1 (Level 1)
-    currentX += GAP_SMALL;
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+      // Add items
+      if (itemType === "sweet") {
+        if (width === DOUBLE_WIDTH) {
+          // Double width gets 2 sweets separated by half width
+          const sep = width / 2;
+          this.addItemData(centerX - sep / 2, y, "sweet");
+          this.addItemData(centerX + sep / 2, y, "sweet");
+        } else {
+          this.addItemData(centerX, y, "sweet");
+        }
+      } else if (itemType === "tea") {
+        this.addItemData(centerX, y, "tea");
+      }
 
-    // 2. Platform 2 (Level 2)
-    currentX += STANDARD_WIDTH + GAP_SMALL;
-    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_2_Y, "sweet");
+      return startX + width; // Return End Point
+    };
 
-    // 3. Platform 3 (Level 1)
-    currentX += STANDARD_WIDTH + GAP_SMALL;
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+    // --- BLOCK 1 ---
+    let cursor = 200; // Starting point
 
-    // --- GAP (20 Steps) ---
-    currentX += STANDARD_WIDTH + GAP_20_STEPS;
+    // Platform 1 (Lvl 1)
+    let p1End = addPlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
 
-    // --- BLOCK 2 (3 Platforms: Lvl 1 -> 2 -> 3, Middle Double Width) ---
+    // Platform 2 (Lvl 2) - Starts 1.5 char after P1 End
+    let p2Start = p1End + GAP_SMALL;
+    let p2End = addPlatform(p2Start, LEVEL_2_Y, STANDARD_WIDTH, "sweet");
 
-    // 4. Platform 4 (Level 1, Standard)
-    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+    // Platform 3 (Lvl 1) - Starts 1.5 char after P2 End
+    let p3Start = p2End + GAP_SMALL;
+    let p3End = addPlatform(p3Start, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
 
-    // 5. Platform 5 (Level 2, DOUBLE WIDTH)
-    currentX += STANDARD_WIDTH + GAP_SMALL;
-    this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
+    // --- MIDDLE TEA PLATFORM ---
+    // The gap between Block 1 and Block 2 is 400px (20 steps).
+    // Block 2 Starts at p3End + 400.
+    // We want a platform exactly in the middle.
+    let block2StartPoint = p3End + GAP_BLOCKS;
+    let gapCenter = (p3End + block2StartPoint) / 2;
 
-    // Add two sweets separated by half platform size
-    const separation = DOUBLE_WIDTH / 2;
-    this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
-    this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
+    // Place middle platform centered on gapCenter
+    let midPlatStart = gapCenter - STANDARD_WIDTH / 2;
+    addPlatform(midPlatStart, LEVEL_3_Y, STANDARD_WIDTH, "tea");
 
-    // 6. Platform 6 (Level 3, Standard)
-    currentX += DOUBLE_WIDTH + GAP_SMALL;
-    this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
-    this.addItemData(currentX, LEVEL_3_Y, "tea");
+    // --- BLOCK 2 ---
+    // Starts exactly 20 steps after Block 1 ends
+    cursor = block2StartPoint;
+
+    // Platform 4 (Lvl 1) - Standard
+    let p4End = addPlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
+
+    // Platform 5 (Lvl 2) - DOUBLE WIDTH
+    let p5Start = p4End + GAP_SMALL;
+    let p5End = addPlatform(p5Start, LEVEL_2_Y, DOUBLE_WIDTH, "sweet");
+
+    // Platform 6 (Lvl 3) - Standard
+    let p6Start = p5End + GAP_SMALL;
+    addPlatform(p6Start, LEVEL_3_Y, STANDARD_WIDTH, "sweet");
   }
+  // --- LOGIC REWRITE END ---
 
-  // Helper to store platform coordinates
   addPlatformData(x: number, y: number, width: number): void {
     this.platformData.push({ x, y, width });
   }
 
-  // Helper to store item coordinates
   addItemData(x: number, y: number, type: "sweet" | "tea"): void {
-    // Items float slightly above the platform (y - 50)
     this.itemsToSpawn.push({ x, y: y - 50, type });
   }
 
@@ -252,7 +271,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnLevelObjects(): void {
-    // Iterate through the manually designed list
     this.itemsToSpawn.forEach((item) => {
       if (item.type === "sweet") {
         this.createSweet(item.x, item.y);
@@ -260,8 +278,6 @@ export class GameScene extends Phaser.Scene {
         this.createTea(item.x, item.y);
       }
     });
-
-    // Enemies can still be random
     this.spawnEnemies();
   }
 
@@ -307,11 +323,15 @@ export class GameScene extends Phaser.Scene {
         const height = enemy.height;
         enemy.setScale(0.1);
 
-        const hitWidth = width * 0.6;
+        // --- BUG FIX FOR JUMPING ON ENEMIES ---
+        // 1. Make Hitbox Narrower: Reduced width from 0.6 to 0.4
+        // This prevents side collisions when you land near the edge of the bug
+        const hitWidth = width * 0.4;
         const hitHeight = height * 0.5;
 
         enemy.setSize(hitWidth, hitHeight);
         enemy.setOffset((width - hitWidth) / 2, height - hitHeight);
+        // -------------------------------------
 
         const body = enemy.body as Phaser.Physics.Arcade.Body;
         body.setBounce(0, 0);
