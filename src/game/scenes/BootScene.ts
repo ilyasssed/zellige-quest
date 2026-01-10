@@ -48,6 +48,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('sweet', '/images/sweet.png');
     this.load.image('cockroach', '/images/cockroach.png');
     this.load.image('sandal', '/images/projectile.png');
+    this.load.image('platform', '/images/table.png');
 
     // Generate sound effects
     this.generateMunchSound();
@@ -59,58 +60,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   generateGameAssets(): void {
-    this.generatePlatformSprite();
     this.generateGroundSprite();
     this.generateLanternSprite();
     this.generateArchSprite();
     this.generateHeartSprite();
   }
 
-
-  generatePlatformSprite(): void {
-    const graphics = this.make.graphics({ x: 0, y: 0 });
-    
-    // Orange brick pattern like reference
-    const brickColor = 0xCC6B2C;
-    const brickDark = 0xA85520;
-    const mortarColor = 0x8B4513;
-    
-    // Fill mortar/grout background
-    graphics.fillStyle(mortarColor);
-    graphics.fillRect(0, 0, 64, 32);
-    
-    // Draw brick pattern - two rows
-    const brickWidth = 28;
-    const brickHeight = 12;
-    const gap = 3;
-    
-    // Row 1 - full bricks
-    for (let x = 0; x < 64; x += brickWidth + gap) {
-      graphics.fillStyle(brickColor);
-      graphics.fillRoundedRect(x + 2, 2, brickWidth, brickHeight, 2);
-      // Highlight
-      graphics.fillStyle(0xE07830);
-      graphics.fillRect(x + 4, 4, brickWidth - 4, 3);
-      // Shadow
-      graphics.fillStyle(brickDark);
-      graphics.fillRect(x + 4, brickHeight - 2, brickWidth - 4, 2);
-    }
-    
-    // Row 2 - offset bricks
-    for (let x = -14; x < 64; x += brickWidth + gap) {
-      graphics.fillStyle(brickColor);
-      graphics.fillRoundedRect(x + 2, 17, brickWidth, brickHeight, 2);
-      // Highlight
-      graphics.fillStyle(0xE07830);
-      graphics.fillRect(x + 4, 19, brickWidth - 4, 3);
-      // Shadow
-      graphics.fillStyle(brickDark);
-      graphics.fillRect(x + 4, 17 + brickHeight - 2, brickWidth - 4, 2);
-    }
-    
-    graphics.generateTexture('platform', 64, 32);
-    graphics.destroy();
-  }
 
   generateGroundSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
