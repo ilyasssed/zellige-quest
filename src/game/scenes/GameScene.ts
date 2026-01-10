@@ -1,7 +1,18 @@
 import Phaser from "phaser";
 import { JUMP_VELOCITY, SANDAL_SPEED, PLAYER_SPEED } from "../config";
-import { LevelGenerator, PlatformData } from "../LevelGenerator";
-import { SeededRandom, GAME_SEED } from "../SeededRandom";
+
+// Define our own simple interface for the data we generate
+interface PlatformData {
+  x: number;
+  y: number;
+  width: number;
+}
+
+interface ItemData {
+  x: number;
+  y: number;
+  type: "sweet" | "tea";
+}
 
 interface GameState {
   score: number;
@@ -9,25 +20,24 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
-const LEVEL_WIDTH = 2000;
+// Increased width to fit designed level
+const LEVEL_WIDTH = 3000;
 const LEVEL_HEIGHT = 400;
-const GROUND_Y = LEVEL_HEIGHT - 32; // Ground level for player feet
+const GROUND_Y = LEVEL_HEIGHT - 32;
 
-// Jump physics constants (calculated from game config values)
-const PLAYER_GRAVITY = 1400; // 800 world + 600 player
-const JUMP_VELOCITY_VALUE = 450; // absolute value
-const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYER_GRAVITY); // ~72px
-const JUMP_TIME = (2 * JUMP_VELOCITY_VALUE) / PLAYER_GRAVITY; // ~0.64s
-const MAX_HORIZONTAL_JUMP = 200 * JUMP_TIME; // ~128px (using PLAYER_SPEED value)
+// Physics constants
+const PLAYER_GRAVITY = 1400;
+const JUMP_VELOCITY_VALUE = 450;
+const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYER_GRAVITY);
 
-// Platform height constants
-const PLATFORM_HEIGHT = 32; // Height of a platform tile
-const STEP = 20; // Base unit for horizontal spacing (in pixels)
+// Dimensions
+const PLATFORM_HEIGHT = 32;
+const STEP_PIXELS = 20; // 1 step = 20px
 
-// Level heights (from ground) - obstacles stack based on their size
-const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9; // Jump height from ground
-const LEVEL_2_Y = LEVEL_1_Y - 2 * PLATFORM_HEIGHT; // Level 1 + 2 obstacle heights
-const LEVEL_3_Y = LEVEL_2_Y - 2 * PLATFORM_HEIGHT; // Level 2 + 2 obstacle heights
+// Level Y positions
+const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
+const LEVEL_2_Y = LEVEL_1_Y - 2 * PLATFORM_HEIGHT;
+const LEVEL_3_Y = LEVEL_2_Y - 2 * PLATFORM_HEIGHT;
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -57,67 +67,69 @@ export class GameScene extends Phaser.Scene {
   private playerSpeed = 200;
   private soundtrack?: Phaser.Sound.BaseSound;
 
+  // Arrays to hold our manual design data
   private platformData: PlatformData[] = [];
+  private itemsToSpawn: ItemData[] = [];
+
   private isPaused = false;
   private pauseMenu?: Phaser.GameObjects.Container;
   private soundButton?: Phaser.GameObjects.Container;
   private pauseButton?: Phaser.GameObjects.Container;
-
-  // Seeded random for reproducible spawns - change GAME_SEED in SeededRandom.ts for different patterns
-  private rng: SeededRandom = new SeededRandom(GAME_SEED);
 
   constructor() {
     super({ key: "GameScene" });
   }
 
   create(): void {
-    // Reset game state
+    // Reset state
     this.gameState = { score: 0, lives: 3, hasPowerUp: false };
     this.isInvulnerable = false;
     this.canThrow = true;
     this.isGameOver = false;
+    this.platformData = [];
+    this.itemsToSpawn = [];
 
-    // Set world bounds for horizontal level
+    // World bounds
     this.physics.world.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
 
-    // Create background
     this.createBackground();
 
-    // Create ground (full level width) - positioned higher
+    // Ground
     this.ground = this.physics.add.staticGroup();
     for (let x = 0; x < LEVEL_WIDTH + 64; x += 64) {
       const tile = this.ground.create(x, LEVEL_HEIGHT - 16, "ground") as Phaser.Physics.Arcade.Sprite;
       tile.refreshBody();
     }
 
-    // Create platforms
-    this.platforms = this.physics.add.staticGroup();
-    this.createLevel();
+    // 1. Calculate the designed level positions
+    this.buildDesignedLevel();
 
-    // Create groups
+    // 2. Create the platforms
+    this.platforms = this.physics.add.staticGroup();
+    this.createPlatforms();
+
+    // Groups
     this.sweets = this.physics.add.group();
     this.teas = this.physics.add.group();
     this.enemies = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Create player with PNG sprite (static by default)
+    // Player
     this.player = this.physics.add.sprite(100, GROUND_Y - 64, "player-static");
-    this.player.setOrigin(0.5, 1); // Anchor at bottom-center so feet stay on ground
+    this.player.setOrigin(0.5, 1);
     this.player.setScale(0.15);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setGravityY(600);
 
-    // Adjust physics body to align with bottom of sprite
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     const spriteHeight = this.player.height;
     const spriteWidth = this.player.width;
-    // Body covers most of sprite, offset from top-left of original texture
     playerBody.setSize(spriteWidth * 0.6, spriteHeight * 0.9);
     playerBody.setOffset(spriteWidth * 0.2, spriteHeight * 0.1);
     this.player.body.updateFromGameObject();
 
-    // Camera follows player horizontally
+    // Camera
     this.cameras.main.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
     this.cameras.main.startFollow(this.player, true, 0.1, 0);
     this.cameras.main.setDeadzone(200, LEVEL_HEIGHT);
@@ -138,13 +150,13 @@ export class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.X);
 
-    // HUD (fixed to camera)
+    // HUD
     this.createHUD();
 
-    // Spawn level objects
+    // 3. Spawn the items (using calculated positions)
     this.spawnLevelObjects();
 
-    // Play soundtrack (looping)
+    // Soundtrack
     this.soundtrack = this.sound.get("soundtrack");
     if (!this.soundtrack) {
       this.soundtrack = this.sound.add("soundtrack", { loop: true, volume: 0.5 });
@@ -153,98 +165,204 @@ export class GameScene extends Phaser.Scene {
       this.soundtrack.play();
     }
 
-    // Create control buttons (sound + pause)
     this.createControlButtons();
-
-    // Fade in
     this.cameras.main.fadeIn(500);
+  }
+
+  // Defines the layout step-by-step
+  buildDesignedLevel(): void {
+    let currentX = 200; // Starting offset
+    const STANDARD_WIDTH = 128; // ~2 tiles
+    const DOUBLE_WIDTH = 256; // ~4 tiles
+
+    // "5 steps after the start"
+    const gap5steps = 5 * STEP_PIXELS; // 100px
+
+    // --- PART 1: The First 3 Platforms ---
+
+    // 1. Platform at Level 1
+    currentX += gap5steps;
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+
+    // 2. Platform at Level 2 ("after it... same distance")
+    currentX += STANDARD_WIDTH + gap5steps;
+    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_2_Y, "sweet");
+
+    // 3. Platform at Level 1 ("same distance")
+    currentX += STANDARD_WIDTH + gap5steps;
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+
+    // --- PART 2: The Big Jump ---
+
+    // "Then move for 20 steps"
+    const gap20steps = 20 * STEP_PIXELS; // 400px
+    currentX += STANDARD_WIDTH + gap20steps;
+
+    // 4. Platform at Level 1 (Double Width)
+    this.addPlatformData(currentX, LEVEL_1_Y, DOUBLE_WIDTH);
+    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+
+    // 5. Platform at Level 2 (Double Width)
+    currentX += DOUBLE_WIDTH + gap5steps;
+    this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
+
+    // "Second having 2 sweets separated by half the platform size"
+    const separation = DOUBLE_WIDTH / 2;
+    this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
+    this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
+
+    // 6. Platform at Level 3
+    currentX += DOUBLE_WIDTH + gap5steps;
+    this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_3_Y, "tea");
+  }
+
+  // Helper to store platform coordinates
+  addPlatformData(x: number, y: number, width: number): void {
+    this.platformData.push({ x, y, width });
+  }
+
+  // Helper to store item coordinates
+  addItemData(x: number, y: number, type: "sweet" | "tea"): void {
+    // Items float slightly above the platform (y - 50)
+    this.itemsToSpawn.push({ x, y: y - 50, type });
+  }
+
+  createPlatforms(): void {
+    this.platformData.forEach((data) => {
+      const tileWidth = 64;
+      const tilesNeeded = Math.ceil(data.width / tileWidth);
+      const startX = data.x - ((tilesNeeded - 1) * tileWidth) / 2;
+
+      for (let i = 0; i < tilesNeeded; i++) {
+        const platform = this.platforms.create(
+          startX + i * tileWidth,
+          data.y,
+          "platform"
+        ) as Phaser.Physics.Arcade.Sprite;
+        platform.refreshBody();
+      }
+    });
+  }
+
+  spawnLevelObjects(): void {
+    // Iterate through the manually designed list
+    this.itemsToSpawn.forEach((item) => {
+      if (item.type === "sweet") {
+        this.createSweet(item.x, item.y);
+      } else if (item.type === "tea") {
+        this.createTea(item.x, item.y);
+      }
+    });
+
+    // Enemies can still be random
+    this.spawnEnemies();
+  }
+
+  createSweet(x: number, y: number): void {
+    const sweet = this.sweets.create(x, y, "sweet") as Phaser.Physics.Arcade.Sprite;
+    sweet.setScale(0.2);
+    (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    this.tweens.add({
+      targets: sweet,
+      y: sweet.y - 5,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  createTea(x: number, y: number): void {
+    const tea = this.teas.create(x, y, "tea") as Phaser.Physics.Arcade.Sprite;
+    tea.setScale(0.3);
+    (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    this.tweens.add({
+      targets: tea,
+      y: tea.y - 10,
+      alpha: 0.8,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  spawnEnemies(): void {
+    const numEnemies = 5;
+    const spacing = LEVEL_WIDTH / (numEnemies + 1);
+
+    for (let i = 1; i <= numEnemies; i++) {
+      const x = spacing * i;
+      if (x > 300) {
+        const enemy = this.enemies.create(x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
+
+        const width = enemy.width;
+        const height = enemy.height;
+        enemy.setScale(0.1);
+
+        const hitWidth = width * 0.6;
+        const hitHeight = height * 0.5;
+
+        enemy.setSize(hitWidth, hitHeight);
+        enemy.setOffset((width - hitWidth) / 2, height - hitHeight);
+
+        const body = enemy.body as Phaser.Physics.Arcade.Body;
+        body.setBounce(0, 0);
+
+        const direction = this.player.x > x ? 1 : -1;
+        body.setVelocityX(80 * direction);
+        enemy.setData("direction", direction);
+        enemy.setFlipX(direction < 0);
+      }
+    }
   }
 
   createControlButtons(): void {
     const camWidth = this.cameras.main.width;
-
-    // Sound toggle button - start with sound ON (not muted)
     this.soundButton = this.add.container(camWidth - 90, 30);
-    this.soundButton.setScrollFactor(0);
-    this.soundButton.setDepth(100);
-
+    this.soundButton.setScrollFactor(0).setDepth(100);
     const soundBg = this.add.graphics();
     soundBg.fillStyle(0x000000, 0.6);
     soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
-
-    // Check actual mute state
     const isMuted = this.sound.mute;
-    const soundIcon = this.add.text(0, 0, isMuted ? "🔇" : "🔊", {
-      fontSize: "20px",
-    });
-    soundIcon.setOrigin(0.5);
-    soundIcon.setName("soundIcon");
-
+    const soundIcon = this.add.text(0, 0, isMuted ? "🔇" : "🔊", { fontSize: "20px" });
+    soundIcon.setOrigin(0.5).setName("soundIcon");
     this.soundButton.add([soundBg, soundIcon]);
-    this.soundButton.setSize(40, 40);
-    this.soundButton.setInteractive({ useHandCursor: true });
+    this.soundButton.setSize(40, 40).setInteractive({ useHandCursor: true });
 
     this.soundButton.on("pointerover", () => {
       this.tweens.add({ targets: this.soundButton, scale: 1.1, duration: 100 });
     });
-
     this.soundButton.on("pointerout", () => {
       this.tweens.add({ targets: this.soundButton, scale: 1, duration: 100 });
     });
-
     this.soundButton.on("pointerdown", () => {
-      // Toggle mute state
-      const newMuteState = !this.sound.mute;
-      this.sound.mute = newMuteState;
-
-      // Update icon immediately
+      this.sound.mute = !this.sound.mute;
       const icon = this.soundButton?.getByName("soundIcon") as Phaser.GameObjects.Text;
-      if (icon) {
-        icon.setText(newMuteState ? "🔇" : "🔊");
-      }
-
-      // Press animation
-      this.tweens.add({
-        targets: this.soundButton,
-        scale: 0.9,
-        duration: 50,
-        yoyo: true,
-      });
+      if (icon) icon.setText(this.sound.mute ? "🔇" : "🔊");
+      this.tweens.add({ targets: this.soundButton, scale: 0.9, duration: 50, yoyo: true });
     });
 
-    // Pause button
     this.pauseButton = this.add.container(camWidth - 40, 30);
-    this.pauseButton.setScrollFactor(0);
-    this.pauseButton.setDepth(100);
-
+    this.pauseButton.setScrollFactor(0).setDepth(100);
     const pauseBg = this.add.graphics();
     pauseBg.fillStyle(0x000000, 0.6);
     pauseBg.fillRoundedRect(-20, -20, 40, 40, 8);
-
-    const pauseIcon = this.add.text(0, 0, "⏸️", {
-      fontSize: "20px",
-    });
+    const pauseIcon = this.add.text(0, 0, "⏸️", { fontSize: "20px" });
     pauseIcon.setOrigin(0.5);
-
     this.pauseButton.add([pauseBg, pauseIcon]);
-    this.pauseButton.setSize(40, 40);
-    this.pauseButton.setInteractive({ useHandCursor: true });
-
-    this.pauseButton.on("pointerdown", () => {
-      this.togglePause();
-    });
-
-    // ESC key to pause
-    this.input.keyboard?.on("keydown-ESC", () => {
-      this.togglePause();
-    });
+    this.pauseButton.setSize(40, 40).setInteractive({ useHandCursor: true });
+    this.pauseButton.on("pointerdown", () => this.togglePause());
+    this.input.keyboard?.on("keydown-ESC", () => this.togglePause());
   }
 
   togglePause(): void {
     if (this.isGameOver) return;
-
     this.isPaused = !this.isPaused;
-
     if (this.isPaused) {
       this.physics.pause();
       this.showPauseMenu();
@@ -256,79 +374,46 @@ export class GameScene extends Phaser.Scene {
 
   showPauseMenu(): void {
     const { width, height } = this.cameras.main;
-
-    this.pauseMenu = this.add.container(width / 2, height / 2);
-    this.pauseMenu.setScrollFactor(0);
-    this.pauseMenu.setDepth(200);
-
-    // Dark overlay
+    this.pauseMenu = this.add.container(width / 2, height / 2).setScrollFactor(0).setDepth(200);
     const overlay = this.add.graphics();
     overlay.fillStyle(0x000000, 0.7);
     overlay.fillRect(-width / 2, -height / 2, width, height);
-
-    // Menu background
     const menuBg = this.add.graphics();
     menuBg.fillStyle(0x2f1f0f, 1);
     menuBg.fillRoundedRect(-120, -100, 240, 200, 16);
     menuBg.lineStyle(3, 0xd4a574);
     menuBg.strokeRoundedRect(-120, -100, 240, 200, 16);
-
-    // Paused title
     const title = this.add.text(0, -70, "PAUSED", {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: "20px",
       color: "#D4A574",
-    });
-    title.setOrigin(0.5);
-
-    // Resume button
-    const resumeBtn = this.createMenuButton(0, -20, "▶ Resume", () => {
-      this.togglePause();
-    });
-
-    // Retry button
+    }).setOrigin(0.5);
+    const resumeBtn = this.createMenuButton(0, -20, "▶ Resume", () => this.togglePause());
     const retryBtn = this.createMenuButton(0, 30, "↻ Retry", () => {
       this.hidePauseMenu();
       this.scene.restart();
     });
-
-    // Main Menu button
     const menuBtn = this.createMenuButton(0, 80, "🏠 Main Menu", () => {
       this.hidePauseMenu();
       this.scene.start("MenuScene");
     });
-
     this.pauseMenu.add([overlay, menuBg, title, resumeBtn, retryBtn, menuBtn]);
   }
 
   createMenuButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
     const btn = this.add.container(x, y);
-
     const bg = this.add.graphics();
     bg.fillStyle(0x8b2942, 1);
     bg.fillRoundedRect(-90, -18, 180, 36, 8);
-
     const label = this.add.text(0, 0, text, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: "10px",
       color: "#FFFFFF",
-    });
-    label.setOrigin(0.5);
-
-    btn.add([bg, label]);
-    btn.setSize(180, 36);
-    btn.setInteractive({ useHandCursor: true });
-
-    btn.on("pointerover", () => {
-      this.tweens.add({ targets: btn, scale: 1.05, duration: 100 });
-    });
-
-    btn.on("pointerout", () => {
-      this.tweens.add({ targets: btn, scale: 1, duration: 100 });
-    });
-
+    }).setOrigin(0.5);
+    btn.add([bg, label]).setSize(180, 36).setInteractive({ useHandCursor: true });
+    btn.on("pointerover", () => this.tweens.add({ targets: btn, scale: 1.05, duration: 100 }));
+    btn.on("pointerout", () => this.tweens.add({ targets: btn, scale: 1, duration: 100 }));
     btn.on("pointerdown", callback);
-
     return btn;
   }
 
@@ -343,264 +428,28 @@ export class GameScene extends Phaser.Scene {
     const bgTexture = this.textures.get("background");
     const bgWidth = bgTexture.getSourceImage().width;
     const bgHeight = bgTexture.getSourceImage().height;
-
-    // Scale to fit level height while maintaining aspect ratio
     const scale = LEVEL_HEIGHT / bgHeight;
     const scaledWidth = bgWidth * scale;
-
-    // Calculate how many tiles needed to cover LEVEL_WIDTH
     const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
-
-    // Add yellow sky behind the background
     const sky = this.add.rectangle(LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2, LEVEL_WIDTH, LEVEL_HEIGHT, 0xfdcb6e);
     sky.setOrigin(0.5, 0.5);
-
-    // Place background images side by side with 70% opacity
     for (let i = 0; i < tilesNeeded; i++) {
       const bg = this.add.image(i * scaledWidth, 0, "background");
-      bg.setOrigin(0, 0);
-      bg.setScale(scale);
-      bg.setAlpha(0.7);
+      bg.setOrigin(0, 0).setScale(scale).setAlpha(0.7);
     }
-  }
-
-  createLevel(): void {
-    // Generate platforms procedurally based on jump physics
-    this.platformData = this.generatePlatforms();
-
-    // Create platform sprites with varying widths
-    this.platformData.forEach((data) => {
-      // Create multiple platform tiles for wider platforms
-      const tileCount = Math.ceil(data.width / 64);
-      for (let i = 0; i < tileCount; i++) {
-        const platform = this.platforms.create(
-          data.x + i * 64 - (tileCount - 1) * 32,
-          data.y,
-          "platform",
-        ) as Phaser.Physics.Arcade.Sprite;
-        platform.refreshBody();
-      }
-    });
-  }
-
-  generatePlatforms(): PlatformData[] {
-    const generator = new LevelGenerator({
-      levelWidth: LEVEL_WIDTH,
-      groundY: GROUND_Y,
-      levelYs: [LEVEL_1_Y, LEVEL_2_Y, LEVEL_3_Y],
-      platformHeight: PLATFORM_HEIGHT,
-      step: STEP,
-      maxJumpHeight: MAX_JUMP_HEIGHT,
-      maxHorizontalJump: MAX_HORIZONTAL_JUMP,
-      minPlatforms: 5, // Level 1: 5-10 random obstacles
-      maxPlatforms: 10,
-      seed: GAME_SEED,
-    });
-
-    return generator.generate();
-  }
-
-  private sweetPositions: { x: number; y: number }[] = [];
-
-  spawnLevelObjects(): void {
-    // Spawn exactly 5 sweets using seeded random (store positions for tea)
-    this.spawnSweets();
-
-    // Spawn exactly 1 tea using seeded random (avoiding sweet positions)
-    this.spawnTea();
-
-    // Enemies - place on ground between platforms
-    this.spawnEnemies();
-  }
-
-  spawnTea(): void {
-    // Generate possible tea spawn positions
-    const possiblePositions: { x: number; y: number }[] = [];
-
-    // Add platform positions
-    this.platformData.forEach((platform) => {
-      possiblePositions.push({
-        x: platform.x,
-        y: platform.y - 50,
-      });
-    });
-
-    // Add ground positions
-    for (let x = 300; x < LEVEL_WIDTH - 300; x += 300) {
-      const isClear = !this.platformData.some((p) => Math.abs(p.x - x) < 100);
-      if (isClear) {
-        possiblePositions.push({
-          x,
-          y: GROUND_Y - 50,
-        });
-      }
-    }
-
-    // Filter out positions that are too close to sweets
-    const filteredPositions = possiblePositions.filter((pos) => {
-      return !this.sweetPositions.some(
-        (sweetPos) => Math.abs(sweetPos.x - pos.x) < 80 && Math.abs(sweetPos.y - pos.y) < 80,
-      );
-    });
-
-    // Pick a random position using seeded RNG
-    const finalPositions = filteredPositions.length > 0 ? filteredPositions : possiblePositions;
-    if (finalPositions.length === 0) {
-      // Fallback to center of level
-      finalPositions.push({ x: LEVEL_WIDTH / 2, y: GROUND_Y - 50 });
-    }
-
-    const teaIndex = Math.floor(this.rng.random() * finalPositions.length);
-    const teaPos = finalPositions[teaIndex];
-
-    const tea = this.teas.create(teaPos.x, teaPos.y, "tea") as Phaser.Physics.Arcade.Sprite;
-    (tea.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-    tea.setScale(0.3);
-    this.tweens.add({
-      targets: tea,
-      y: tea.y - 10,
-      alpha: 0.8,
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
-  }
-
-  spawnSweets(): void {
-    const SWEET_COUNT = 5; // Exactly 5 sweets per level
-    const safeJumpHeight = MAX_JUMP_HEIGHT * 0.85;
-
-    // Generate all possible sweet spawn positions
-    const possiblePositions: { x: number; y: number }[] = [];
-
-    // Add platform positions
-    this.platformData.forEach((platform) => {
-      possiblePositions.push({
-        x: platform.x,
-        y: platform.y - 50,
-      });
-    });
-
-    // Add jump arc positions between platforms
-    for (let i = 0; i < this.platformData.length - 1; i++) {
-      const current = this.platformData[i];
-      const next = this.platformData[i + 1];
-      const midX = (current.x + next.x) / 2;
-      const lowerY = Math.max(current.y, next.y);
-      const sweetY = lowerY - safeJumpHeight * 0.7;
-      possiblePositions.push({ x: midX, y: sweetY });
-    }
-
-    // Add ground positions
-    for (let x = 300; x < LEVEL_WIDTH - 200; x += 300) {
-      const isClear = !this.platformData.some((p) => Math.abs(p.x - x) < 100);
-      if (isClear) {
-        possiblePositions.push({
-          x,
-          y: GROUND_Y - safeJumpHeight * 0.5,
-        });
-      }
-    }
-
-    // Shuffle positions using seeded RNG and pick exactly SWEET_COUNT
-    this.rng.shuffle(possiblePositions);
-    const selectedPositions = possiblePositions.slice(0, SWEET_COUNT);
-
-    // Store sweet positions so tea doesn't spawn at same place
-    this.sweetPositions = selectedPositions.slice();
-
-    // Create sweets at selected positions
-    selectedPositions.forEach((pos) => {
-      const sweet = this.sweets.create(pos.x, pos.y, "sweet") as Phaser.Physics.Arcade.Sprite;
-      sweet.setScale(0.2);
-      (sweet.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-      this.tweens.add({
-        targets: sweet,
-        y: sweet.y - 5,
-        duration: 500,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
-    });
-  }
-
-  spawnEnemies(): void {
-    // Generate enemy positions on the ground between platforms
-    const enemyPositions: { x: number; y: number }[] = [];
-
-    // Add enemies at intervals along the ground
-    const numEnemies = 5; // Number of enemies to spawn
-    const spacing = LEVEL_WIDTH / (numEnemies + 1);
-
-    for (let i = 1; i <= numEnemies; i++) {
-      const x = spacing * i;
-      // Avoid spawning too close to player start position
-      if (x > 300) {
-        enemyPositions.push({ x, y: GROUND_Y });
-      }
-    }
-
-    enemyPositions.forEach((pos) => {
-      const enemy = this.enemies.create(pos.x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
-      enemy.setScale(0.1);
-
-      // --- FIX STARTS HERE ---
-
-      // 1. Get the actual dimensions after scaling
-      const width = enemy.width;
-      const height = enemy.height;
-
-      // 2. Make the hitbox TALLER.
-      // Previously it was 0.1 (10%), which is too flat.
-      // We change it to 0.5 (50%) or 0.6 so the player hits the "back" of the bug.
-      const hitWidth = width * 0.6; // Slightly narrower than sprite
-      const hitHeight = height * 0.5; // Taller so it catches the jump earlier
-
-      enemy.setSize(hitWidth, hitHeight);
-
-      // 3. Center the hitbox horizontally, align it to bottom vertically
-      enemy.setOffset(
-        (width - hitWidth) / 2, // Center X
-        height - hitHeight, // Align to bottom Y
-      );
-
-      // --- FIX ENDS HERE ---
-
-      const body = enemy.body as Phaser.Physics.Arcade.Body;
-      body.setBounce(0, 0);
-
-      // Initial direction
-      const direction = this.player.x > pos.x ? 1 : -1;
-      body.setVelocityX(80 * direction);
-      enemy.setData("direction", direction);
-      enemy.setFlipX(direction < 0);
-    });
   }
 
   enemyHitPlatform(
     enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
-    const platformSprite = platform as Phaser.Physics.Arcade.Sprite;
     const body = enemySprite.body as Phaser.Physics.Arcade.Body;
-    const platformBody = platformSprite.body as Phaser.Physics.Arcade.StaticBody;
-
-    // Only reverse direction when hitting a wall/obstacle from the side
-    // This is a true horizontal collision with a static platform
+    const platformBody = (platform as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.StaticBody;
     if (body.touching.left || body.touching.right) {
-      // Check if this is a side collision (enemy and platform overlap vertically)
-      const enemyTop = body.top;
       const enemyBottom = body.bottom;
       const platformTop = platformBody.top;
-      const platformBottom = platformBody.bottom;
-
-      // True side collision: enemy's vertical range overlaps with platform's vertical range
-      const verticalOverlap = enemyBottom > platformTop && enemyTop < platformBottom;
-
-      if (verticalOverlap) {
+      if (enemyBottom > platformTop) {
         const newDirection = body.touching.left ? 1 : -1;
         body.setVelocityX(80 * newDirection);
         enemySprite.setFlipX(newDirection < 0);
@@ -609,50 +458,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  createHUD(): void {
-    const hudBg = this.add.graphics();
-    hudBg.fillStyle(0x000000, 0.4);
-    hudBg.fillRoundedRect(10, 10, 180, 50, 8);
-    hudBg.setScrollFactor(0);
-
-    this.scoreText = this.add.text(20, 18, "Score: 0", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "12px",
-      color: "#FFD700",
-    });
-    this.scoreText.setScrollFactor(0);
-
-    this.livesContainer = this.add.container(20, 42);
-    this.livesContainer.setScrollFactor(0);
-    this.updateLivesDisplay();
-
-    this.powerUpIndicator = this.add.container(680, 30);
-    this.powerUpIndicator.setScrollFactor(0);
-    const powerUpBg = this.add.graphics();
-    powerUpBg.fillStyle(0x228b22, 0.9);
-    powerUpBg.fillRoundedRect(-60, -15, 120, 30, 8);
-    const powerUpText = this.add.text(0, 0, "X = THROW", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "10px",
-      color: "#FFFFFF",
-    });
-    powerUpText.setOrigin(0.5);
-    this.powerUpIndicator.add([powerUpBg, powerUpText]);
-    this.powerUpIndicator.setVisible(false);
-  }
-
-  updateLivesDisplay(): void {
-    this.livesContainer.removeAll(true);
-    for (let i = 0; i < this.gameState.lives; i++) {
-      const heart = this.add.image(i * 22, 0, "heart");
-      heart.setScale(0.8);
-      this.livesContainer.add(heart);
-    }
-  }
-
   collectSweet(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
     const sweetSprite = sweet as Phaser.Physics.Arcade.Sprite;
     this.tweens.add({
@@ -669,7 +477,7 @@ export class GameScene extends Phaser.Scene {
 
   collectTea(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    tea: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    tea: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
     const teaSprite = tea as Phaser.Physics.Arcade.Sprite;
     teaSprite.destroy();
@@ -678,41 +486,29 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.flash(200, 50, 205, 50);
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
-
-    // Play munch sound
     this.sound.play("munch", { volume: 0.6 });
   }
 
   handleEnemyCollision(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
     const playerSprite = player as Phaser.Physics.Arcade.Sprite;
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
     const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
     const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
-
-    // 1. Player must be falling (velocity Y > 0)
     const isFalling = playerBody.velocity.y > 0;
-
-    // 2. Player's feet must be above the enemy's vertical CENTER.
-    // This is much safer than checking "top" because it works even if you overlap slightly.
     const isAbove = playerBody.bottom <= enemyBody.center.y;
-
     if (isFalling && isAbove) {
-      // SUCCESS: Stomp the enemy
       this.defeatEnemy(enemySprite);
-      playerBody.setVelocityY(-350); // Bounce the player up
+      playerBody.setVelocityY(-350);
     } else if (!this.isInvulnerable) {
-      // FAIL: Player gets hit
       this.takeDamage();
     }
   }
 
   defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
-    // Play enemy death sound
     this.sound.play("enemyDeath", { volume: 0.5 });
-
     this.tweens.add({
       targets: enemy,
       scaleY: 0.2,
@@ -727,42 +523,31 @@ export class GameScene extends Phaser.Scene {
   throwSandal(): void {
     if (!this.gameState.hasPowerUp || !this.canThrow) return;
     this.canThrow = false;
-
     const direction = this.player.flipX ? -1 : 1;
-
-    // Start point: Bottom of the character
     const startX = this.player.x + 30 * direction;
     const startY = this.player.y;
-
     const sandal = this.sandals.create(startX, startY, "sandal") as Phaser.Physics.Arcade.Sprite;
     sandal.setScale(0.1);
-
     const sandalBody = sandal.body as Phaser.Physics.Arcade.Body;
     sandalBody.setAllowGravity(false);
     sandalBody.setVelocityX(SANDAL_SPEED * direction);
     if (direction < 0) sandal.setFlipX(true);
-
-    // Setup sine wave data - amplitude is half the player's height
     const amplitude = this.player.displayHeight / 2;
     sandal.setData({
       startY: startY,
       startX: startX,
       amplitude: amplitude,
-      frequency: 0.05, // Tighter waves for easier enemy hits
+      frequency: 0.05,
     });
-
-    // Rotation animation
     this.tweens.add({
       targets: sandal,
       angle: 360 * direction,
       duration: 300,
       repeat: -1,
     });
-
     this.time.delayedCall(1500, () => {
       if (sandal.active) sandal.destroy();
     });
-
     this.time.delayedCall(400, () => {
       this.canThrow = true;
     });
@@ -770,29 +555,19 @@ export class GameScene extends Phaser.Scene {
 
   sandalHitEnemy(
     sandal: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile
   ): void {
-    const sandalSprite = sandal as Phaser.Physics.Arcade.Sprite;
-    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
-    sandalSprite.destroy();
-    this.defeatEnemy(enemySprite);
+    (sandal as Phaser.Physics.Arcade.Sprite).destroy();
+    this.defeatEnemy(enemy as Phaser.Physics.Arcade.Sprite);
   }
 
   takeDamage(): void {
     this.isInvulnerable = true;
     this.gameState.lives--;
     this.updateLivesDisplay();
-
-    // Play ouch sound
     this.sound.play("ouch", { volume: 0.6 });
-
-    // Red tint overlay effect
     this.player.setTint(0xff0000);
-    this.time.delayedCall(150, () => {
-      this.player.clearTint();
-    });
-
-    // Flashing invulnerability
+    this.time.delayedCall(150, () => this.player.clearTint());
     this.tweens.add({
       targets: this.player,
       alpha: 0.3,
@@ -804,34 +579,57 @@ export class GameScene extends Phaser.Scene {
         this.isInvulnerable = false;
       },
     });
-
     this.cameras.main.shake(200, 0.01);
-
-    if (this.gameState.lives <= 0) {
-      this.gameOver();
-    }
+    if (this.gameState.lives <= 0) this.gameOver();
   }
 
   gameOver(): void {
     this.isGameOver = true;
     this.physics.pause();
     this.player.setTint(0xff0000);
-
     this.cameras.main.fade(1000, 0, 0, 0);
     this.time.delayedCall(1000, () => {
       this.scene.start("GameOverScene", { score: this.gameState.score });
     });
   }
 
+  createHUD(): void {
+    const hudBg = this.add.graphics();
+    hudBg.fillStyle(0x000000, 0.4);
+    hudBg.fillRoundedRect(10, 10, 180, 50, 8);
+    hudBg.setScrollFactor(0);
+    this.scoreText = this.add.text(20, 18, "Score: 0", {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "12px",
+      color: "#FFD700",
+    }).setScrollFactor(0);
+    this.livesContainer = this.add.container(20, 42).setScrollFactor(0);
+    this.updateLivesDisplay();
+    this.powerUpIndicator = this.add.container(680, 30).setScrollFactor(0);
+    const powerUpBg = this.add.graphics();
+    powerUpBg.fillStyle(0x228b22, 0.9);
+    powerUpBg.fillRoundedRect(-60, -15, 120, 30, 8);
+    const powerUpText = this.add.text(0, 0, "X = THROW", {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "10px",
+      color: "#FFFFFF",
+    }).setOrigin(0.5);
+    this.powerUpIndicator.add([powerUpBg, powerUpText]).setVisible(false);
+  }
+
+  updateLivesDisplay(): void {
+    this.livesContainer.removeAll(true);
+    for (let i = 0; i < this.gameState.lives; i++) {
+      const heart = this.add.image(i * 22, 0, "heart").setScale(0.8);
+      this.livesContainer.add(heart);
+    }
+  }
+
   update(): void {
     if (this.isGameOver || this.isPaused) return;
-
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const onGround = body.touching.down || body.blocked.down;
-
-    // Horizontal movement
     const isMoving = this.cursors.left.isDown || this.cursors.right.isDown;
-
     if (this.cursors.left.isDown) {
       body.setVelocityX(-this.playerSpeed);
       this.player.setFlipX(true);
@@ -841,8 +639,6 @@ export class GameScene extends Phaser.Scene {
     } else {
       body.setVelocityX(0);
     }
-
-    // Play walk animation or show static frame
     if (isMoving) {
       if (!this.player.anims.isPlaying || this.player.anims.currentAnim?.key !== "player-walk") {
         this.player.anims.play("player-walk");
@@ -851,34 +647,23 @@ export class GameScene extends Phaser.Scene {
       this.player.anims.stop();
       this.player.setTexture("player-static");
     }
-
-    // Jump
     if ((this.cursors.space.isDown || this.cursors.up.isDown) && onGround) {
       body.setVelocityY(JUMP_VELOCITY);
     }
-
-    // Throw sandal
     if (Phaser.Input.Keyboard.JustDown(this.attackKey) && this.gameState.hasPowerUp) {
       this.throwSandal();
     }
-
-    // Update enemy movement - move toward player, reverse at world bounds
     this.enemies.getChildren().forEach((child) => {
       const enemy = child as Phaser.Physics.Arcade.Sprite;
       const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
-
-      // Reverse at world bounds
       if (enemy.x <= 50 || enemy.x >= LEVEL_WIDTH - 50) {
         const newDirection = enemy.x <= 50 ? 1 : -1;
         enemyBody.setVelocityX(80 * newDirection);
         enemy.setFlipX(newDirection < 0);
         enemy.setData("direction", newDirection);
       } else {
-        // Move toward player
         const currentDirection = enemy.getData("direction") as number;
         const targetDirection = this.player.x > enemy.x ? 1 : -1;
-
-        // Only change direction if not blocked
         if (currentDirection !== targetDirection) {
           enemy.setData("direction", targetDirection);
           enemyBody.setVelocityX(80 * targetDirection);
@@ -886,31 +671,21 @@ export class GameScene extends Phaser.Scene {
         }
       }
     });
-
-    // Check win
     if (this.player.x >= LEVEL_WIDTH - 100) {
       this.gameState.score += 1000;
       this.gameOver();
     }
-
-    // Update sandals with sine wave movement and cleanup
     this.sandals.getChildren().forEach((child) => {
       const sandal = child as Phaser.Physics.Arcade.Sprite;
-
-      // Get sine wave data
       const startX = sandal.getData("startX");
       const startY = sandal.getData("startY");
       const amplitude = sandal.getData("amplitude");
       const freq = sandal.getData("frequency");
-
-      // Calculate sine wave Y position
       if (typeof startX === "number") {
         const distanceTraveled = Math.abs(sandal.x - startX);
         const yOffset = Math.abs(Math.sin(distanceTraveled * freq)) * amplitude;
         sandal.y = startY - yOffset;
       }
-
-      // Cleanup if off-screen
       if (sandal.x < 0 || sandal.x > LEVEL_WIDTH) {
         sandal.destroy();
       }
