@@ -128,6 +128,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setGravityY(600);
+    this.player.setDepth(10);
 
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     const spriteHeight = this.player.height;
