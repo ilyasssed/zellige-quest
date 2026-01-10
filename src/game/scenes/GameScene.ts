@@ -20,8 +20,8 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
-// Increased width to fit designed level
-const LEVEL_WIDTH = 3000;
+// Increased width to fit the sequence of blocks
+const LEVEL_WIDTH = 4000;
 const LEVEL_HEIGHT = 400;
 const GROUND_Y = LEVEL_HEIGHT - 32;
 
@@ -169,86 +169,108 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500);
   }
 
-  // --- LOGIC REWRITE START ---
-  buildDesignedLevel(): void {
+  // --- REUSABLE BLOCK BUILDERS ---
+
+  /**
+   * Adds Bloc 1: Lvl 1 -> Lvl 2 -> Lvl 1 (All Standard Width)
+   * @param prevX Center X of the previous platform (or start point)
+   * @param gap Distance from the previous platform
+   * @returns The center X of the last platform added
+   */
+  addBlock1(prevX: number, gap: number): number {
+    const STANDARD_WIDTH = 128;
+    const CHAR_WIDTH = 50;
+    const BLOCK_GAP = CHAR_WIDTH * 1.5; // 75px between internal platforms
+
+    let currentX = prevX;
+
+    // 1. Platform 1 (Level 1)
+    // Offset = gap + half prev width (standard) + half new width (standard) = gap + STANDARD_WIDTH
+    currentX += gap + STANDARD_WIDTH;
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+
+    // 2. Platform 2 (Level 2)
+    currentX += STANDARD_WIDTH + BLOCK_GAP;
+    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_2_Y, "sweet");
+
+    // 3. Platform 3 (Level 1)
+    currentX += STANDARD_WIDTH + BLOCK_GAP;
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_1_Y, "sweet");
+
+    return currentX;
+  }
+
+  /**
+   * Adds Bloc 2: Lvl 1 -> Lvl 2 (Double) -> Lvl 2 (Tea)
+   * @param prevX Center X of the previous platform
+   * @param gap Distance from the previous platform
+   * @returns The center X of the last platform added
+   */
+  addBlock2(prevX: number, gap: number): number {
     const STANDARD_WIDTH = 128;
     const DOUBLE_WIDTH = 256;
     const CHAR_WIDTH = 50;
+    const BLOCK_GAP = CHAR_WIDTH * 1.5; // 75px
 
-    // Spacing constants
-    const GAP_SMALL = CHAR_WIDTH * 1.5; // 75px
-    const GAP_BLOCKS = 20 * STEP_PIXELS; // 400px (20 steps)
+    let currentX = prevX;
 
-    // Helper to add platform by Left Edge (Start Point)
-    // Returns the Right Edge (End Point)
-    const addPlatform = (startX: number, y: number, width: number, itemType?: "sweet" | "tea") => {
-      // Calculate Center for Phaser
-      const centerX = startX + width / 2;
-      this.addPlatformData(centerX, y, width);
+    // 1. Platform 1 (Level 1, Standard)
+    currentX += gap + STANDARD_WIDTH;
+    this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-      // Add items
-      if (itemType === "sweet") {
-        if (width === DOUBLE_WIDTH) {
-          // Double width gets 2 sweets separated by half width
-          const sep = width / 2;
-          this.addItemData(centerX - sep / 2, y, "sweet");
-          this.addItemData(centerX + sep / 2, y, "sweet");
-        } else {
-          this.addItemData(centerX, y, "sweet");
-        }
-      } else if (itemType === "tea") {
-        this.addItemData(centerX, y, "tea");
-      }
+    // 2. Platform 2 (Level 2, Double Width)
+    // Offset = Gap + half Standard + half Double = Gap + 64 + 128 = Gap + 192
+    currentX += STANDARD_WIDTH / 2 + BLOCK_GAP + DOUBLE_WIDTH / 2;
+    this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
 
-      return startX + width; // Return End Point
-    };
+    // Two sweets separated by half platform size
+    const separation = DOUBLE_WIDTH / 2;
+    this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
+    this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
 
-    // --- BLOCK 1 ---
-    let cursor = 200; // Starting point
+    // 3. Platform 3 (Level 2, Standard, Tea) - User requested tea in level 2
+    // Offset = Gap + half Double + half Standard = Gap + 128 + 64 = Gap + 192
+    currentX += DOUBLE_WIDTH / 2 + BLOCK_GAP + STANDARD_WIDTH / 2;
+    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH); // Level 2
+    this.addItemData(currentX, LEVEL_2_Y, "tea");
 
-    // Platform 1 (Lvl 1)
-    let p1End = addPlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
-
-    // Platform 2 (Lvl 2) - Starts 1.5 char after P1 End
-    let p2Start = p1End + GAP_SMALL;
-    let p2End = addPlatform(p2Start, LEVEL_2_Y, STANDARD_WIDTH, "sweet");
-
-    // Platform 3 (Lvl 1) - Starts 1.5 char after P2 End
-    let p3Start = p2End + GAP_SMALL;
-    let p3End = addPlatform(p3Start, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
-
-    // --- MIDDLE TEA PLATFORM ---
-    // The gap between Block 1 and Block 2 is 400px (20 steps).
-    // Block 2 Starts at p3End + 400.
-    // We want a platform exactly in the middle.
-    let block2StartPoint = p3End + GAP_BLOCKS;
-    let gapCenter = (p3End + block2StartPoint) / 2;
-
-    // Place middle platform centered on gapCenter
-    let midPlatStart = gapCenter - STANDARD_WIDTH / 2;
-    addPlatform(midPlatStart, LEVEL_3_Y, STANDARD_WIDTH, "tea");
-
-    // --- BLOCK 2 ---
-    // Starts exactly 20 steps after Block 1 ends
-    cursor = block2StartPoint;
-
-    // Platform 4 (Lvl 1) - Standard
-    let p4End = addPlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
-
-    // Platform 5 (Lvl 2) - DOUBLE WIDTH
-    let p5Start = p4End + GAP_SMALL;
-    let p5End = addPlatform(p5Start, LEVEL_2_Y, DOUBLE_WIDTH, "sweet");
-
-    // Platform 6 (Lvl 3) - Standard
-    let p6Start = p5End + GAP_SMALL;
-    addPlatform(p6Start, LEVEL_3_Y, STANDARD_WIDTH, "sweet");
+    return currentX;
   }
-  // --- LOGIC REWRITE END ---
 
+  buildDesignedLevel(): void {
+    const CHAR_WIDTH = 50;
+
+    // Spacing definitions
+    const GAP_1_5_CHAR = CHAR_WIDTH * 1.5; // 75px
+    const GAP_20_STEPS = 20 * STEP_PIXELS; // 400px
+    const GAP_5_STEPS = 5 * STEP_PIXELS; // 100px
+
+    let currentX = 200; // Start offset
+
+    // --- 1. First Bloc 1 ---
+    // Pass 0 gap because it's the start
+    currentX = this.addBlock1(currentX, 0);
+
+    // --- 2. Second Bloc 2 (Separated by 1.5x char width) ---
+    currentX = this.addBlock2(currentX, GAP_1_5_CHAR);
+
+    // --- 3. Third Bloc 2 (Separated by 20 steps) ---
+    currentX = this.addBlock2(currentX, GAP_20_STEPS);
+
+    // --- 4. Fourth Bloc 1 (Separated by 5 steps) ---
+    currentX = this.addBlock1(currentX, GAP_5_STEPS);
+  }
+
+  // Helper to store platform coordinates
   addPlatformData(x: number, y: number, width: number): void {
     this.platformData.push({ x, y, width });
   }
 
+  // Helper to store item coordinates
   addItemData(x: number, y: number, type: "sweet" | "tea"): void {
     this.itemsToSpawn.push({ x, y: y - 50, type });
   }
@@ -278,6 +300,7 @@ export class GameScene extends Phaser.Scene {
         this.createTea(item.x, item.y);
       }
     });
+
     this.spawnEnemies();
   }
 
@@ -311,7 +334,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies(): void {
-    const numEnemies = 5;
+    // Generate enemies based on level length
+    const numEnemies = Math.floor(LEVEL_WIDTH / 600); // 1 enemy every ~600px
     const spacing = LEVEL_WIDTH / (numEnemies + 1);
 
     for (let i = 1; i <= numEnemies; i++) {
@@ -323,15 +347,11 @@ export class GameScene extends Phaser.Scene {
         const height = enemy.height;
         enemy.setScale(0.1);
 
-        // --- BUG FIX FOR JUMPING ON ENEMIES ---
-        // 1. Make Hitbox Narrower: Reduced width from 0.6 to 0.4
-        // This prevents side collisions when you land near the edge of the bug
-        const hitWidth = width * 0.4;
+        const hitWidth = width * 0.6;
         const hitHeight = height * 0.5;
 
         enemy.setSize(hitWidth, hitHeight);
         enemy.setOffset((width - hitWidth) / 2, height - hitHeight);
-        // -------------------------------------
 
         const body = enemy.body as Phaser.Physics.Arcade.Body;
         body.setBounce(0, 0);
