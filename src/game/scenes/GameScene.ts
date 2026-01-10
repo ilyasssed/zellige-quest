@@ -128,7 +128,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.1);
     this.player.setGravityY(600);
-    this.player.setDepth(10);
+    this.player.setDepth(5);
 
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     const spriteHeight = this.player.height;
@@ -307,12 +307,6 @@ export class GameScene extends Phaser.Scene {
     // We add the adjustment to GROUND_Y
     this.door = this.physics.add.sprite(x, GROUND_Y + yAdjustment, "door1");
 
-    // Depth 0: Background
-    // Depth 1: Platforms/Items
-    // Depth 10: Player (default is usually effectively higher because it's created last)
-    this.door.setDepth(0);
-    // ---------------------
-
     // --- SCALING ---
     // Change DOOR_SCALE at the top of the file to change size
     this.door.setScale(DOOR_SCALE);
@@ -423,6 +417,7 @@ export class GameScene extends Phaser.Scene {
         const width = enemy.width;
         const height = enemy.height;
         enemy.setScale(0.1);
+        enemy.setDepth(5);
 
         // --- FIXED HITBOX: Made narrower to prevent weird jump kills ---
         const hitWidth = width * 0.4;
