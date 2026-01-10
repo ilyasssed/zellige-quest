@@ -55,9 +55,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image("platform", "/images/table.png");
 
     // --- NEW: Load Door Images ---
-    this.load.image("door1", "/images/door1.png");
-    this.load.image("door2", "/images/door2.png");
-    this.load.image("door3", "/images/door3.png");
+    this.load.image("door1", "/images/door1.png"); // Closed
+    this.load.image("door2", "/images/door2.png"); // Half open
+    this.load.image("door3", "/images/door3.png"); // Open
     // -----------------------------
 
     // Generate sound effects
@@ -78,37 +78,26 @@ export class BootScene extends Phaser.Scene {
 
   generateGroundSprite(): void {
     const graphics = this.make.graphics({ x: 0, y: 0 });
-
-    // Orange brick pattern like reference
     const brickColor = 0xcc6b2c;
     const brickDark = 0xa85520;
     const mortarColor = 0x8b4513;
-
-    // Fill mortar/grout background
     graphics.fillStyle(mortarColor);
     graphics.fillRect(0, 0, 64, 64);
-
-    // Draw brick pattern - 4 rows
     const brickWidth = 28;
     const brickHeight = 12;
     const gap = 3;
-
     for (let row = 0; row < 4; row++) {
       const yPos = row * (brickHeight + gap) + 2;
       const offset = row % 2 === 0 ? 0 : -14;
-
       for (let x = offset; x < 64; x += brickWidth + gap) {
         graphics.fillStyle(brickColor);
         graphics.fillRoundedRect(x + 2, yPos, brickWidth, brickHeight, 2);
-        // Highlight
         graphics.fillStyle(0xe07830);
         graphics.fillRect(x + 4, yPos + 2, brickWidth - 4, 3);
-        // Shadow
         graphics.fillStyle(brickDark);
         graphics.fillRect(x + 4, yPos + brickHeight - 2, brickWidth - 4, 2);
       }
     }
-
     graphics.generateTexture("ground", 64, 64);
     graphics.destroy();
   }
@@ -151,23 +140,18 @@ export class BootScene extends Phaser.Scene {
   }
 
   generateMunchSound(): void {
-    // Generate a simple munch/crunch sound using Web Audio
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const sampleRate = audioContext.sampleRate;
     const duration = 0.15;
     const samples = Math.floor(sampleRate * duration);
     const buffer = audioContext.createBuffer(1, samples, sampleRate);
     const data = buffer.getChannelData(0);
-
     for (let i = 0; i < samples; i++) {
       const t = i / sampleRate;
-      // Crunchy noise with decay
       const noise = (Math.random() * 2 - 1) * Math.exp(-t * 20);
       const crunch = Math.sin(t * 800) * Math.exp(-t * 15) * 0.5;
       data[i] = (noise + crunch) * 0.5;
     }
-
-    // Convert to WAV and create data URL
     const wavBlob = this.bufferToWav(buffer);
     const url = URL.createObjectURL(wavBlob);
     this.load.audio("munch", url);
@@ -180,15 +164,12 @@ export class BootScene extends Phaser.Scene {
     const samples = Math.floor(sampleRate * duration);
     const buffer = audioContext.createBuffer(1, samples, sampleRate);
     const data = buffer.getChannelData(0);
-
     for (let i = 0; i < samples; i++) {
       const t = i / sampleRate;
-      // Descending "ouch" tone
       const freq = 400 - t * 600;
       const tone = Math.sin(t * freq * Math.PI * 2) * Math.exp(-t * 8);
       data[i] = tone * 0.4;
     }
-
     const wavBlob = this.bufferToWav(buffer);
     const url = URL.createObjectURL(wavBlob);
     this.load.audio("ouch", url);
@@ -201,16 +182,13 @@ export class BootScene extends Phaser.Scene {
     const samples = Math.floor(sampleRate * duration);
     const buffer = audioContext.createBuffer(1, samples, sampleRate);
     const data = buffer.getChannelData(0);
-
     for (let i = 0; i < samples; i++) {
       const t = i / sampleRate;
-      // Squish/splat sound - descending with noise
       const freq = 200 - t * 400;
       const tone = Math.sin(t * Math.max(freq, 50) * Math.PI * 2) * Math.exp(-t * 12);
       const noise = (Math.random() * 2 - 1) * Math.exp(-t * 10) * 0.3;
       data[i] = (tone + noise) * 0.4;
     }
-
     const wavBlob = this.bufferToWav(buffer);
     const url = URL.createObjectURL(wavBlob);
     this.load.audio("enemyDeath", url);
@@ -229,14 +207,11 @@ export class BootScene extends Phaser.Scene {
     const bufferSize = 44 + dataSize;
     const arrayBuffer = new ArrayBuffer(bufferSize);
     const view = new DataView(arrayBuffer);
-
-    // WAV header
     const writeString = (offset: number, string: string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
-
     writeString(0, "RIFF");
     view.setUint32(4, bufferSize - 8, true);
     writeString(8, "WAVE");
@@ -250,15 +225,12 @@ export class BootScene extends Phaser.Scene {
     view.setUint16(34, bitDepth, true);
     writeString(36, "data");
     view.setUint32(40, dataSize, true);
-
-    // Write audio data
     let offset = 44;
     for (let i = 0; i < samples; i++) {
       const sample = Math.max(-1, Math.min(1, data[i]));
       view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
       offset += 2;
     }
-
     return new Blob([arrayBuffer], { type: "audio/wav" });
   }
 
@@ -294,6 +266,7 @@ export class BootScene extends Phaser.Scene {
     }
 
     // --- NEW: Door Animation ---
+    // Animates door1 -> door2 -> door3 and stops
     if (!this.anims.exists("door-open")) {
       this.anims.create({
         key: "door-open",
@@ -302,8 +275,8 @@ export class BootScene extends Phaser.Scene {
           { key: "door2" }, // Half-open
           { key: "door3" }, // Open
         ],
-        frameRate: 5, // Speed of opening
-        repeat: 0, // Do not repeat, stop at door3
+        frameRate: 5,
+        repeat: 0, // Do not repeat
       });
     }
     // ---------------------------
