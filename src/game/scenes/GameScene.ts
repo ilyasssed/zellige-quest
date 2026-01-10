@@ -20,8 +20,8 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
-// Increased width to fit the sequence of blocks
-const LEVEL_WIDTH = 4000;
+// Increased width to fit the longer sequence
+const LEVEL_WIDTH = 4500;
 const LEVEL_HEIGHT = 400;
 const GROUND_Y = LEVEL_HEIGHT - 32;
 
@@ -173,25 +173,23 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Adds Bloc 1: Lvl 1 -> Lvl 2 -> Lvl 1 (All Standard Width)
-   * @param prevX Center X of the previous platform (or start point)
-   * @param gap Distance from the previous platform
-   * @returns The center X of the last platform added
+   * Internal Spacing: 1.5 char width
    */
-  addBlock1(prevX: number, gap: number): number {
+  addBlock1(prevX: number, gap: number, prevWidth: number): number {
     const STANDARD_WIDTH = 128;
     const CHAR_WIDTH = 50;
-    const BLOCK_GAP = CHAR_WIDTH * 1.5; // 75px between internal platforms
+    const BLOCK_GAP = CHAR_WIDTH * 1.5; // 75px
 
     let currentX = prevX;
 
     // 1. Platform 1 (Level 1)
-    // Offset = gap + half prev width (standard) + half new width (standard) = gap + STANDARD_WIDTH
-    currentX += gap + STANDARD_WIDTH;
+    // Offset calculation: Center-to-Center = (PrevWidth/2) + GAP + (NewWidth/2)
+    currentX += prevWidth / 2 + gap + STANDARD_WIDTH / 2;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
     // 2. Platform 2 (Level 2)
-    currentX += STANDARD_WIDTH + BLOCK_GAP;
+    currentX += STANDARD_WIDTH + BLOCK_GAP; // Standard to Standard transition
     this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_2_Y, "sweet");
 
@@ -200,16 +198,15 @@ export class GameScene extends Phaser.Scene {
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
-    return currentX;
+    return currentX; // Return center of last platform
   }
 
   /**
-   * Adds Bloc 2: Lvl 1 -> Lvl 2 (Double) -> Lvl 2 (Tea)
-   * @param prevX Center X of the previous platform
-   * @param gap Distance from the previous platform
-   * @returns The center X of the last platform added
+   * Adds Bloc 2: Lvl 1 (Std) -> Lvl 2 (Double) -> Lvl 3 (Std)
+   * Internal Spacing: 1.5 char width
+   * Items: Sweets only (Tea is handled manually outside)
    */
-  addBlock2(prevX: number, gap: number): number {
+  addBlock2(prevX: number, gap: number, prevWidth: number): number {
     const STANDARD_WIDTH = 128;
     const DOUBLE_WIDTH = 256;
     const CHAR_WIDTH = 50;
@@ -218,12 +215,12 @@ export class GameScene extends Phaser.Scene {
     let currentX = prevX;
 
     // 1. Platform 1 (Level 1, Standard)
-    currentX += gap + STANDARD_WIDTH;
+    currentX += prevWidth / 2 + gap + STANDARD_WIDTH / 2;
     this.addPlatformData(currentX, LEVEL_1_Y, STANDARD_WIDTH);
     this.addItemData(currentX, LEVEL_1_Y, "sweet");
 
     // 2. Platform 2 (Level 2, Double Width)
-    // Offset = Gap + half Standard + half Double = Gap + 64 + 128 = Gap + 192
+    // Offset: Half Standard + Gap + Half Double
     currentX += STANDARD_WIDTH / 2 + BLOCK_GAP + DOUBLE_WIDTH / 2;
     this.addPlatformData(currentX, LEVEL_2_Y, DOUBLE_WIDTH);
 
@@ -232,37 +229,57 @@ export class GameScene extends Phaser.Scene {
     this.addItemData(currentX - separation / 2, LEVEL_2_Y, "sweet");
     this.addItemData(currentX + separation / 2, LEVEL_2_Y, "sweet");
 
-    // 3. Platform 3 (Level 2, Standard, Tea) - User requested tea in level 2
-    // Offset = Gap + half Double + half Standard = Gap + 128 + 64 = Gap + 192
+    // 3. Platform 3 (Level 3, Standard)
+    // Offset: Half Double + Gap + Half Standard
     currentX += DOUBLE_WIDTH / 2 + BLOCK_GAP + STANDARD_WIDTH / 2;
-    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH); // Level 2
-    this.addItemData(currentX, LEVEL_2_Y, "tea");
+    this.addPlatformData(currentX, LEVEL_3_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_3_Y, "sweet");
 
-    return currentX;
+    return currentX; // Return center of last platform
   }
 
   buildDesignedLevel(): void {
     const CHAR_WIDTH = 50;
+    const STANDARD_WIDTH = 128;
+    const DOUBLE_WIDTH = 256;
 
     // Spacing definitions
-    const GAP_1_5_CHAR = CHAR_WIDTH * 1.5; // 75px
+    const GAP_SMALL = CHAR_WIDTH * 1.5; // ~75px
+    const GAP_10_STEPS = 10 * STEP_PIXELS; // 200px
     const GAP_20_STEPS = 20 * STEP_PIXELS; // 400px
-    const GAP_5_STEPS = 5 * STEP_PIXELS; // 100px
 
-    let currentX = 200; // Start offset
+    // Start point
+    let currentX = 200;
+    let lastWidth = 0; // No previous platform width at start
 
-    // --- 1. First Bloc 1 ---
-    // Pass 0 gap because it's the start
-    currentX = this.addBlock1(currentX, 0);
+    // --- SEQUENCE START ---
 
-    // --- 2. Second Bloc 2 (Separated by 1.5x char width) ---
-    currentX = this.addBlock2(currentX, GAP_1_5_CHAR);
+    // 1. BLOC 1
+    // (Lvl 1 -> 2 -> 1)
+    currentX = this.addBlock1(currentX, 0, 0);
+    lastWidth = STANDARD_WIDTH; // Last plat of Block 1 is Standard
 
-    // --- 3. Third Bloc 2 (Separated by 20 steps) ---
-    currentX = this.addBlock2(currentX, GAP_20_STEPS);
+    // 2. ONE PLATFORM (Level 2) - WITH TEA
+    // Separated by 1.5 char width
+    currentX += lastWidth / 2 + GAP_SMALL + STANDARD_WIDTH / 2;
+    this.addPlatformData(currentX, LEVEL_2_Y, STANDARD_WIDTH);
+    this.addItemData(currentX, LEVEL_2_Y, "tea"); // THE ONLY TEA
+    lastWidth = STANDARD_WIDTH;
 
-    // --- 4. Fourth Bloc 1 (Separated by 5 steps) ---
-    currentX = this.addBlock1(currentX, GAP_5_STEPS);
+    // 3. BLOC 2
+    // Separated by 10 steps
+    currentX = this.addBlock2(currentX, GAP_10_STEPS, lastWidth);
+    lastWidth = STANDARD_WIDTH; // Last plat of Block 2 is Standard (Lvl 3)
+
+    // 4. BLOC 2
+    // Separated by 20 steps
+    currentX = this.addBlock2(currentX, GAP_20_STEPS, lastWidth);
+    lastWidth = STANDARD_WIDTH;
+
+    // 5. BLOC 1
+    // Separated by 10 steps
+    currentX = this.addBlock1(currentX, GAP_10_STEPS, lastWidth);
+    lastWidth = STANDARD_WIDTH;
   }
 
   // Helper to store platform coordinates
@@ -334,8 +351,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies(): void {
-    // Generate enemies based on level length
-    const numEnemies = Math.floor(LEVEL_WIDTH / 600); // 1 enemy every ~600px
+    const numEnemies = Math.floor(LEVEL_WIDTH / 600);
     const spacing = LEVEL_WIDTH / (numEnemies + 1);
 
     for (let i = 1; i <= numEnemies; i++) {
