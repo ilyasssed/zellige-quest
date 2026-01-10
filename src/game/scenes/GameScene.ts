@@ -34,7 +34,7 @@ const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYE
 const PLATFORM_HEIGHT = 32;
 const STEP_PIXELS = 20; // 1 step = 20px
 const PLATFORM_SCALE = 0.15; // Scale for the table image (as requested in original code)
-const DOOR_SCALE = 0.15; // Scale for the door
+const DOOR_SCALE = 0.3; // Scale for the door
 
 // Level Y positions
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
