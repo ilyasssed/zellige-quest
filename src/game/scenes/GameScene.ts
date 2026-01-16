@@ -19,7 +19,7 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
-// 1. REDUCED LEVEL WIDTH (Shorter Level)
+// 1. SHORTER LEVEL
 const LEVEL_WIDTH = 4000;
 const LEVEL_HEIGHT = 400;
 const GROUND_Y = LEVEL_HEIGHT - 32;
@@ -130,7 +130,6 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.ground);
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.enemies, this.ground);
-    // Enemy touches platform -> call enemyHitPlatform
     this.physics.add.collider(this.enemies, this.platforms, this.enemyHitPlatform, undefined, this);
 
     this.physics.add.overlap(this.player, this.sweets, this.collectSweet, undefined, this);
@@ -269,8 +268,13 @@ export class GameScene extends Phaser.Scene {
     this.player.setVelocityX(0);
     this.player.anims.stop();
     this.player.setTexture("player-static");
-    // 2. REMOVED GREEN TINT
-    // this.player.setTint(0x00ff00);
+
+    // --- 2. FADE AWAY EFFECT ---
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0, // Fade out
+      duration: 500,
+    });
 
     this.time.delayedCall(1000, () => {
       this.gameState.score += 1000;
@@ -335,7 +339,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnEnemies(): void {
-    const numEnemies = Math.floor(LEVEL_WIDTH / 600);
+    // --- 1. ONLY 5 ENEMIES ---
+    const numEnemies = 5;
     const spacing = LEVEL_WIDTH / (numEnemies + 1);
 
     for (let i = 1; i <= numEnemies; i++) {
@@ -354,14 +359,14 @@ export class GameScene extends Phaser.Scene {
         const body = enemy.body as Phaser.Physics.Arcade.Body;
         body.setBounce(0, 0);
 
-        // 3. FIXED MOVEMENT: Random direction at start, does not follow player
+        // Random direction at start
         const direction = Math.random() < 0.5 ? 1 : -1;
         body.setVelocityX(80 * direction);
         enemy.setData("direction", direction);
         enemy.setFlipX(direction < 0);
 
-        // 4. ADDED HP
-        enemy.setData("hp", 1); // 1 life point
+        // 1 life point
+        enemy.setData("hp", 1);
       }
     }
   }
@@ -374,7 +379,6 @@ export class GameScene extends Phaser.Scene {
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
     const body = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    // Only bounce if hitting the SIDE of a platform (blocked left/right)
     if (body.blocked.left || body.blocked.right || body.touching.left || body.touching.right) {
       const currentDir = enemySprite.getData("direction");
       const newDir = -currentDir;
@@ -394,16 +398,12 @@ export class GameScene extends Phaser.Scene {
     const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
     const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
 
-    // 5. IMPROVED STOMP LOGIC
-    // Player is falling
+    // Improved Stomp Logic
     const isFalling = playerBody.velocity.y > 0;
-    // Player's feet are above enemy's feet (more forgiving than center)
-    // We allow hitting anywhere on the top 70% of the enemy
     const isAbove = playerBody.bottom <= enemyBody.bottom - enemyBody.height * 0.3;
 
     if (isFalling && isAbove) {
       this.defeatEnemy(enemySprite);
-      // Small bounce to prevent falling through
       playerBody.setVelocityY(-350);
     } else if (!this.isInvulnerable) {
       this.takeDamage();
@@ -411,14 +411,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
-    // 6. HEALTH LOGIC
     let hp = enemy.getData("hp");
     hp--;
     enemy.setData("hp", hp);
 
     if (hp <= 0) {
       this.sound.play("enemyDeath", { volume: 0.5 });
-      // Disable body so it can't kill you while dying animation plays
       enemy.disableBody();
 
       this.tweens.add({
@@ -431,10 +429,32 @@ export class GameScene extends Phaser.Scene {
       this.gameState.score += 200;
       this.scoreText.setText(`Score: ${this.gameState.score}`);
     } else {
-      // Hit effect (blink red) if not dead yet (for future bosses)
       enemy.setTint(0xff0000);
       this.time.delayedCall(100, () => enemy.clearTint());
     }
+  }
+
+  // --- 3. TEA SHINE EFFECT ---
+  collectTea(player: any, tea: any): void {
+    const teaSprite = tea as Phaser.Physics.Arcade.Sprite;
+    teaSprite.destroy();
+    this.gameState.hasPowerUp = true;
+    this.powerUpIndicator.setVisible(true);
+
+    // REMOVED: this.cameras.main.flash(...)
+
+    // ADDED: Player Shine/Blink Effect
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0.5,
+      duration: 100,
+      yoyo: true,
+      repeat: 5, // Flash 5 times over 1 second
+    });
+
+    this.gameState.score += 500;
+    this.scoreText.setText(`Score: ${this.gameState.score}`);
+    this.sound.play("munch", { volume: 0.6 });
   }
 
   update(): void {
@@ -477,7 +497,6 @@ export class GameScene extends Phaser.Scene {
       const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
 
       // Patrol Check: World Bounds
-      // If enemy hits left (50px) or right (LEVEL_WIDTH - 50) edges of world
       if ((enemy.x <= 50 && enemyBody.velocity.x < 0) || (enemy.x >= LEVEL_WIDTH - 50 && enemyBody.velocity.x > 0)) {
         const currentDir = enemy.getData("direction");
         const newDir = -currentDir;
@@ -486,7 +505,6 @@ export class GameScene extends Phaser.Scene {
         enemy.setFlipX(newDir < 0);
         enemy.setData("direction", newDir);
       }
-      // Note: We REMOVED the "Target Player" logic block here.
     });
 
     this.sandals.getChildren().forEach((child) => {
@@ -508,7 +526,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // --- Helper methods (collectSweet, collectTea, takeDamage, gameOver, etc.) remain unchanged ---
+  // --- Helper methods (collectSweet, takeDamage, gameOver, etc.) remain unchanged ---
   collectSweet(player: any, sweet: any): void {
     const sweetSprite = sweet as Phaser.Physics.Arcade.Sprite;
     this.tweens.add({
@@ -521,17 +539,6 @@ export class GameScene extends Phaser.Scene {
     });
     this.gameState.score += 100;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
-  }
-
-  collectTea(player: any, tea: any): void {
-    const teaSprite = tea as Phaser.Physics.Arcade.Sprite;
-    teaSprite.destroy();
-    this.gameState.hasPowerUp = true;
-    this.powerUpIndicator.setVisible(true);
-    this.cameras.main.flash(200, 50, 205, 50);
-    this.gameState.score += 500;
-    this.scoreText.setText(`Score: ${this.gameState.score}`);
-    this.sound.play("munch", { volume: 0.6 });
   }
 
   throwSandal(): void {
