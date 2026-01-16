@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { JUMP_VELOCITY, SANDAL_SPEED, PLAYER_SPEED } from "../config";
 
-// Define our own simple interface for the data we generate
 interface PlatformData {
   x: number;
   y: number;
@@ -20,23 +19,20 @@ interface GameState {
   hasPowerUp: boolean;
 }
 
-// Increased width to fit the specific sequence
-const LEVEL_WIDTH = 6000;
+// 1. REDUCED LEVEL WIDTH (Shorter Level)
+const LEVEL_WIDTH = 4000;
 const LEVEL_HEIGHT = 400;
 const GROUND_Y = LEVEL_HEIGHT - 32;
 
-// Physics constants
 const PLAYER_GRAVITY = 1400;
 const JUMP_VELOCITY_VALUE = 450;
 const MAX_JUMP_HEIGHT = (JUMP_VELOCITY_VALUE * JUMP_VELOCITY_VALUE) / (2 * PLAYER_GRAVITY);
 
-// Dimensions
 const PLATFORM_HEIGHT = 32;
-const STEP_PIXELS = 20; // 1 step = 20px
-const PLATFORM_SCALE = 0.15; // Scale for the table image (as requested in original code)
-const DOOR_SCALE = 0.2; // Scale for the door
+const STEP_PIXELS = 20;
+const PLATFORM_SCALE = 0.15;
+const DOOR_SCALE = 0.2;
 
-// Level Y positions
 const LEVEL_1_Y = GROUND_Y - MAX_JUMP_HEIGHT * 0.9;
 const LEVEL_2_Y = LEVEL_1_Y - 2 * PLATFORM_HEIGHT;
 const LEVEL_3_Y = LEVEL_2_Y - 2 * PLATFORM_HEIGHT;
@@ -50,7 +46,6 @@ export class GameScene extends Phaser.Scene {
   private enemies!: Phaser.Physics.Arcade.Group;
   private sandals!: Phaser.Physics.Arcade.Group;
 
-  // Door properties
   private door!: Phaser.Physics.Arcade.Sprite;
   private isLevelComplete = false;
 
@@ -73,7 +68,6 @@ export class GameScene extends Phaser.Scene {
   private playerSpeed = 200;
   private soundtrack?: Phaser.Sound.BaseSound;
 
-  // Arrays to hold our manual design data
   private platformData: PlatformData[] = [];
   private itemsToSpawn: ItemData[] = [];
 
@@ -87,7 +81,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Reset state
     this.gameState = { score: 0, lives: 3, hasPowerUp: false };
     this.isInvulnerable = false;
     this.canThrow = true;
@@ -96,32 +89,25 @@ export class GameScene extends Phaser.Scene {
     this.platformData = [];
     this.itemsToSpawn = [];
 
-    // World bounds
     this.physics.world.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
-
     this.createBackground();
 
-    // Ground
     this.ground = this.physics.add.staticGroup();
     for (let x = 0; x < LEVEL_WIDTH + 64; x += 64) {
       const tile = this.ground.create(x, LEVEL_HEIGHT - 16, "ground") as Phaser.Physics.Arcade.Sprite;
       tile.refreshBody();
     }
 
-    // 1. Calculate the designed level positions
     this.buildDesignedLevel();
 
-    // 2. Create the platforms
     this.platforms = this.physics.add.staticGroup();
     this.createPlatforms();
 
-    // Groups
     this.sweets = this.physics.add.group();
     this.teas = this.physics.add.group();
     this.enemies = this.physics.add.group();
     this.sandals = this.physics.add.group();
 
-    // Player
     this.player = this.physics.add.sprite(100, GROUND_Y - 64, "player-static");
     this.player.setOrigin(0.5, 1);
     this.player.setScale(0.15);
@@ -137,39 +123,31 @@ export class GameScene extends Phaser.Scene {
     playerBody.setOffset(spriteWidth * 0.2, spriteHeight * 0.1);
     this.player.body.updateFromGameObject();
 
-    // Camera
     this.cameras.main.setBounds(0, 0, LEVEL_WIDTH, LEVEL_HEIGHT);
     this.cameras.main.startFollow(this.player, true, 0.1, 0);
     this.cameras.main.setDeadzone(200, LEVEL_HEIGHT);
 
-    // Collisions
     this.physics.add.collider(this.player, this.ground);
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.enemies, this.ground);
+    // Enemy touches platform -> call enemyHitPlatform
     this.physics.add.collider(this.enemies, this.platforms, this.enemyHitPlatform, undefined, this);
 
-    // Overlaps
     this.physics.add.overlap(this.player, this.sweets, this.collectSweet, undefined, this);
     this.physics.add.overlap(this.player, this.teas, this.collectTea, undefined, this);
     this.physics.add.overlap(this.player, this.enemies, this.handleEnemyCollision, undefined, this);
     this.physics.add.overlap(this.sandals, this.enemies, this.sandalHitEnemy, undefined, this);
 
-    // Door Overlap
     if (this.door) {
       this.physics.add.overlap(this.player, this.door, this.handleReachDoor, undefined, this);
     }
 
-    // Input
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.X);
 
-    // HUD
     this.createHUD();
-
-    // 3. Spawn the items (using calculated positions)
     this.spawnLevelObjects();
 
-    // Soundtrack
     this.soundtrack = this.sound.get("soundtrack");
     if (!this.soundtrack) {
       this.soundtrack = this.sound.add("soundtrack", { loop: true, volume: 0.5 });
@@ -183,14 +161,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   // --- REUSABLE BLOCK LOGIC ---
-
-  // Helper: Adds a platform. Returns the Right Edge (End Point)
   addSinglePlatform(startX: number, y: number, width: number, itemType?: "sweet" | "tea"): number {
     const centerX = startX + width / 2;
     this.platformData.push({ x: centerX, y, width });
 
     if (itemType === "sweet") {
-      // 2 sweets on double width, 1 on standard
       if (width > 200) {
         const sep = width / 2;
         this.addItemData(centerX - sep / 2, y, "sweet");
@@ -201,68 +176,44 @@ export class GameScene extends Phaser.Scene {
     } else if (itemType === "tea") {
       this.addItemData(centerX, y, "tea");
     }
-
-    return startX + width; // Return End X
+    return startX + width;
   }
 
-  // BLOCK 1: Lvl 1 -> Lvl 2 -> Lvl 1 (All Standard Width)
   createBlock1(startX: number): number {
     const STANDARD_WIDTH = 128;
-    const CHAR_WIDTH = 50;
-    const GAP_SMALL = CHAR_WIDTH * 1.5;
-
+    const GAP_SMALL = 50 * 1.5;
     let cursor = startX;
-
-    // Platform 1 (Lvl 1)
     cursor = this.addSinglePlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
-
-    // Platform 2 (Lvl 2)
     cursor += GAP_SMALL;
     cursor = this.addSinglePlatform(cursor, LEVEL_2_Y, STANDARD_WIDTH, "sweet");
-
-    // Platform 3 (Lvl 1)
     cursor += GAP_SMALL;
     cursor = this.addSinglePlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
-
     return cursor;
   }
 
-  // BLOCK 2: Lvl 1 -> Lvl 2 (Double) -> Lvl 3 (Standard)
   createBlock2(startX: number): number {
     const STANDARD_WIDTH = 128;
     const DOUBLE_WIDTH = 256;
-    const CHAR_WIDTH = 50;
-    const GAP_SMALL = CHAR_WIDTH * 1.5;
-
+    const GAP_SMALL = 50 * 1.5;
     let cursor = startX;
-
-    // Platform 1 (Lvl 1)
     cursor = this.addSinglePlatform(cursor, LEVEL_1_Y, STANDARD_WIDTH, "sweet");
-
-    // Platform 2 (Lvl 2 - Double Width)
     cursor += GAP_SMALL;
     cursor = this.addSinglePlatform(cursor, LEVEL_2_Y, DOUBLE_WIDTH, "sweet");
-
-    // Platform 3 (Lvl 3)
     cursor += GAP_SMALL;
-    // NOTE: Removed "tea" from here as you requested only one tea in the middle
     cursor = this.addSinglePlatform(cursor, LEVEL_3_Y, STANDARD_WIDTH, "sweet");
-
     return cursor;
   }
 
-  // --- MAIN LEVEL BUILDER ---
   buildDesignedLevel(): void {
     const STANDARD_WIDTH = 128;
     const CHAR_WIDTH = 50;
 
-    // Spacings
-    const GAP_1_5_CHAR = CHAR_WIDTH * 1.5; // ~75px
-    const GAP_10_STEPS = 10 * STEP_PIXELS; // 200px
-    const GAP_20_STEPS = 20 * STEP_PIXELS; // 400px
-    const GAP_5_STEPS = 5 * STEP_PIXELS; // 100px
+    const GAP_1_5_CHAR = CHAR_WIDTH * 1.5;
+    const GAP_10_STEPS = 10 * STEP_PIXELS;
+    const GAP_20_STEPS = 20 * STEP_PIXELS;
+    const GAP_5_STEPS = 5 * STEP_PIXELS;
 
-    let cursor = 200; // Start X
+    let cursor = 200;
 
     // 1. Block 1
     cursor = this.createBlock1(cursor);
@@ -291,69 +242,36 @@ export class GameScene extends Phaser.Scene {
     // 9. Block 1
     cursor = this.createBlock1(cursor);
 
-    // --- Create Door at End ---
+    // Door at end of level bounds
     this.createDoor(LEVEL_WIDTH - 200);
   }
 
   createDoor(x: number): void {
-    // --- HOW TO ADAPT THIS ---
-    // Change 'yAdjustment' to move the door up or down.
-    // - 10 : Moves the door UP by 10 pixels
-    // + 10 : Moves the door DOWN by 10 pixels
-    //   0  : Sits exactly on the calculated ground line
     const yAdjustment = -16;
-
-    // Create the door sprite
-    // We add the adjustment to GROUND_Y
     this.door = this.physics.add.sprite(x, GROUND_Y + yAdjustment, "door1");
-
-    // Depth 0: Background
-    // Depth 1: Platforms/Items
-    // Depth 10: Player (default is usually effectively higher because it's created last)
     this.door.setDepth(0);
-    // ---------------------
-
-    // --- SCALING ---
-    // Change DOOR_SCALE at the top of the file to change size
     this.door.setScale(DOOR_SCALE);
-
-    // --- ANCHOR POINT ---
-    // (0.5, 1) means:
-    // 0.5 = Center horizontally
-    // 1   = Bottom vertically
-    // This ensures the "feet" of the door sit on the Y coordinate
     this.door.setOrigin(0.5, 1);
-
     this.door.setImmovable(true);
     (this.door.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-
-    // Refresh body to match scale/position
     this.door.refreshBody();
   }
 
   handleReachDoor(): void {
     if (this.isLevelComplete) return;
-
-    // --- Player must be close to the center of the door ---
-    // The door's origin is (0.5, 1), so door.x is its horizontal center.
-    // We check if the distance between player and door center is small (e.g. < 20px)
     if (Math.abs(this.player.x - this.door.x) > 20) {
-      return; // Too far from center, ignore this overlap event
+      return;
     }
-    // ----------------------------------------------------------------
 
     this.isLevelComplete = true;
-
-    // 1. Play animation
     this.door.play("door-open");
 
-    // 2. Stop the player
     this.player.setVelocityX(0);
     this.player.anims.stop();
     this.player.setTexture("player-static");
-    this.player.setTint(0x00ff00); // Green tint for success
+    // 2. REMOVED GREEN TINT
+    // this.player.setTint(0x00ff00);
 
-    // 3. Wait 1s then finish level
     this.time.delayedCall(1000, () => {
       this.gameState.score += 1000;
       this.scene.start("GameOverScene", { score: this.gameState.score });
@@ -365,19 +283,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   createPlatforms(): void {
-    // Logic to create 1 single table sprite stretched to fit width
     const texture = this.textures.get("platform");
     const originalHeight = texture.getSourceImage().height;
     const targetHeight = originalHeight * PLATFORM_SCALE;
 
     this.platformData.forEach((data) => {
-      // Create sprite at center
       const platform = this.platforms.create(data.x, data.y, "platform") as Phaser.Physics.Arcade.Sprite;
-
-      // Stretch to fit logical width
       platform.setDisplaySize(data.width, targetHeight);
-
-      // Update physics body
       platform.refreshBody();
     });
   }
@@ -430,178 +342,174 @@ export class GameScene extends Phaser.Scene {
       const x = spacing * i;
       if (x > 300) {
         const enemy = this.enemies.create(x, GROUND_Y - 100, "cockroach") as Phaser.Physics.Arcade.Sprite;
-
         const width = enemy.width;
         const height = enemy.height;
         enemy.setScale(0.1);
 
-        // --- FIXED HITBOX: Made narrower to prevent weird jump kills ---
         const hitWidth = width * 0.4;
         const hitHeight = height * 0.5;
-
         enemy.setSize(hitWidth, hitHeight);
         enemy.setOffset((width - hitWidth) / 2, height - hitHeight);
-        // -------------------------------------------------------------
 
         const body = enemy.body as Phaser.Physics.Arcade.Body;
         body.setBounce(0, 0);
 
-        const direction = this.player.x > x ? 1 : -1;
+        // 3. FIXED MOVEMENT: Random direction at start, does not follow player
+        const direction = Math.random() < 0.5 ? 1 : -1;
         body.setVelocityX(80 * direction);
         enemy.setData("direction", direction);
         enemy.setFlipX(direction < 0);
+
+        // 4. ADDED HP
+        enemy.setData("hp", 1); // 1 life point
       }
     }
   }
 
-  createControlButtons(): void {
-    const camWidth = this.cameras.main.width;
-    this.soundButton = this.add.container(camWidth - 90, 30);
-    this.soundButton.setScrollFactor(0).setDepth(100);
-    const soundBg = this.add.graphics();
-    soundBg.fillStyle(0x000000, 0.6);
-    soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
-    const isMuted = this.sound.mute;
-    const soundIcon = this.add.text(0, 0, isMuted ? "🔇" : "🔊", { fontSize: "20px" });
-    soundIcon.setOrigin(0.5).setName("soundIcon");
-    this.soundButton.add([soundBg, soundIcon]);
-    this.soundButton.setSize(40, 40).setInteractive({ useHandCursor: true });
-
-    this.soundButton.on("pointerover", () => {
-      this.tweens.add({ targets: this.soundButton, scale: 1.1, duration: 100 });
-    });
-    this.soundButton.on("pointerout", () => {
-      this.tweens.add({ targets: this.soundButton, scale: 1, duration: 100 });
-    });
-    this.soundButton.on("pointerdown", () => {
-      this.sound.mute = !this.sound.mute;
-      const icon = this.soundButton?.getByName("soundIcon") as Phaser.GameObjects.Text;
-      if (icon) icon.setText(this.sound.mute ? "🔇" : "🔊");
-      this.tweens.add({ targets: this.soundButton, scale: 0.9, duration: 50, yoyo: true });
-    });
-
-    this.pauseButton = this.add.container(camWidth - 40, 30);
-    this.pauseButton.setScrollFactor(0).setDepth(100);
-    const pauseBg = this.add.graphics();
-    pauseBg.fillStyle(0x000000, 0.6);
-    pauseBg.fillRoundedRect(-20, -20, 40, 40, 8);
-    const pauseIcon = this.add.text(0, 0, "⏸️", { fontSize: "20px" });
-    pauseIcon.setOrigin(0.5);
-    this.pauseButton.add([pauseBg, pauseIcon]);
-    this.pauseButton.setSize(40, 40).setInteractive({ useHandCursor: true });
-    this.pauseButton.on("pointerdown", () => this.togglePause());
-    this.input.keyboard?.on("keydown-ESC", () => this.togglePause());
-  }
-
-  togglePause(): void {
-    if (this.isGameOver) return;
-    this.isPaused = !this.isPaused;
-    if (this.isPaused) {
-      this.physics.pause();
-      this.showPauseMenu();
-    } else {
-      this.physics.resume();
-      this.hidePauseMenu();
-    }
-  }
-
-  showPauseMenu(): void {
-    const { width, height } = this.cameras.main;
-    this.pauseMenu = this.add
-      .container(width / 2, height / 2)
-      .setScrollFactor(0)
-      .setDepth(200);
-    const overlay = this.add.graphics();
-    overlay.fillStyle(0x000000, 0.7);
-    overlay.fillRect(-width / 2, -height / 2, width, height);
-    const menuBg = this.add.graphics();
-    menuBg.fillStyle(0x2f1f0f, 1);
-    menuBg.fillRoundedRect(-120, -100, 240, 200, 16);
-    menuBg.lineStyle(3, 0xd4a574);
-    menuBg.strokeRoundedRect(-120, -100, 240, 200, 16);
-    const title = this.add
-      .text(0, -70, "PAUSED", {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: "20px",
-        color: "#D4A574",
-      })
-      .setOrigin(0.5);
-    const resumeBtn = this.createMenuButton(0, -20, "▶ Resume", () => this.togglePause());
-    const retryBtn = this.createMenuButton(0, 30, "↻ Retry", () => {
-      this.hidePauseMenu();
-      this.scene.restart();
-    });
-    const menuBtn = this.createMenuButton(0, 80, "🏠 Main Menu", () => {
-      this.hidePauseMenu();
-      this.scene.start("MenuScene");
-    });
-    this.pauseMenu.add([overlay, menuBg, title, resumeBtn, retryBtn, menuBtn]);
-  }
-
-  createMenuButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
-    const btn = this.add.container(x, y);
-    const bg = this.add.graphics();
-    bg.fillStyle(0x8b2942, 1);
-    bg.fillRoundedRect(-90, -18, 180, 36, 8);
-    const label = this.add
-      .text(0, 0, text, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: "10px",
-        color: "#FFFFFF",
-      })
-      .setOrigin(0.5);
-    btn.add([bg, label]).setSize(180, 36).setInteractive({ useHandCursor: true });
-    btn.on("pointerover", () => this.tweens.add({ targets: btn, scale: 1.05, duration: 100 }));
-    btn.on("pointerout", () => this.tweens.add({ targets: btn, scale: 1, duration: 100 }));
-    btn.on("pointerdown", callback);
-    return btn;
-  }
-
-  hidePauseMenu(): void {
-    if (this.pauseMenu) {
-      this.pauseMenu.destroy();
-      this.pauseMenu = undefined;
-    }
-  }
-
-  createBackground(): void {
-    const bgTexture = this.textures.get("background");
-    const bgWidth = bgTexture.getSourceImage().width;
-    const bgHeight = bgTexture.getSourceImage().height;
-    const scale = LEVEL_HEIGHT / bgHeight;
-    const scaledWidth = bgWidth * scale;
-    const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
-    const sky = this.add.rectangle(LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2, LEVEL_WIDTH, LEVEL_HEIGHT, 0xfdcb6e);
-    sky.setOrigin(0.5, 0.5);
-    for (let i = 0; i < tilesNeeded; i++) {
-      const bg = this.add.image(i * scaledWidth, 0, "background");
-      bg.setOrigin(0, 0).setScale(scale).setAlpha(0.7);
-    }
-  }
-
+  // Called when Enemy hits a Platform (Wall)
   enemyHitPlatform(
     enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
     platform: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
     const body = enemySprite.body as Phaser.Physics.Arcade.Body;
-    const platformBody = (platform as Phaser.Physics.Arcade.Sprite).body as Phaser.Physics.Arcade.StaticBody;
-    if (body.touching.left || body.touching.right) {
-      const enemyBottom = body.bottom;
-      const platformTop = platformBody.top;
-      if (enemyBottom > platformTop) {
-        const newDirection = body.touching.left ? 1 : -1;
-        body.setVelocityX(80 * newDirection);
-        enemySprite.setFlipX(newDirection < 0);
-        enemySprite.setData("direction", newDirection);
-      }
+
+    // Only bounce if hitting the SIDE of a platform (blocked left/right)
+    if (body.blocked.left || body.blocked.right || body.touching.left || body.touching.right) {
+      const currentDir = enemySprite.getData("direction");
+      const newDir = -currentDir;
+
+      body.setVelocityX(80 * newDir);
+      enemySprite.setFlipX(newDir < 0);
+      enemySprite.setData("direction", newDir);
     }
   }
 
-  collectSweet(
+  handleEnemyCollision(
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    sweet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
+    const playerSprite = player as Phaser.Physics.Arcade.Sprite;
+    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
+    const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
+    const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
+
+    // 5. IMPROVED STOMP LOGIC
+    // Player is falling
+    const isFalling = playerBody.velocity.y > 0;
+    // Player's feet are above enemy's feet (more forgiving than center)
+    // We allow hitting anywhere on the top 70% of the enemy
+    const isAbove = playerBody.bottom <= enemyBody.bottom - enemyBody.height * 0.3;
+
+    if (isFalling && isAbove) {
+      this.defeatEnemy(enemySprite);
+      // Small bounce to prevent falling through
+      playerBody.setVelocityY(-350);
+    } else if (!this.isInvulnerable) {
+      this.takeDamage();
+    }
+  }
+
+  defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
+    // 6. HEALTH LOGIC
+    let hp = enemy.getData("hp");
+    hp--;
+    enemy.setData("hp", hp);
+
+    if (hp <= 0) {
+      this.sound.play("enemyDeath", { volume: 0.5 });
+      // Disable body so it can't kill you while dying animation plays
+      enemy.disableBody();
+
+      this.tweens.add({
+        targets: enemy,
+        scaleY: 0.2,
+        alpha: 0,
+        duration: 300,
+        onComplete: () => enemy.destroy(),
+      });
+      this.gameState.score += 200;
+      this.scoreText.setText(`Score: ${this.gameState.score}`);
+    } else {
+      // Hit effect (blink red) if not dead yet (for future bosses)
+      enemy.setTint(0xff0000);
+      this.time.delayedCall(100, () => enemy.clearTint());
+    }
+  }
+
+  update(): void {
+    if (this.isGameOver || this.isPaused || this.isLevelComplete) return;
+
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const onGround = body.touching.down || body.blocked.down;
+    const isMoving = this.cursors.left.isDown || this.cursors.right.isDown;
+
+    if (this.cursors.left.isDown) {
+      body.setVelocityX(-this.playerSpeed);
+      this.player.setFlipX(true);
+    } else if (this.cursors.right.isDown) {
+      body.setVelocityX(this.playerSpeed);
+      this.player.setFlipX(false);
+    } else {
+      body.setVelocityX(0);
+    }
+
+    if (isMoving) {
+      if (!this.player.anims.isPlaying || this.player.anims.currentAnim?.key !== "player-walk") {
+        this.player.anims.play("player-walk");
+      }
+    } else {
+      this.player.anims.stop();
+      this.player.setTexture("player-static");
+    }
+
+    if ((this.cursors.space.isDown || this.cursors.up.isDown) && onGround) {
+      body.setVelocityY(JUMP_VELOCITY);
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.attackKey) && this.gameState.hasPowerUp) {
+      this.throwSandal();
+    }
+
+    // UPDATE ENEMY PATROL
+    this.enemies.getChildren().forEach((child) => {
+      const enemy = child as Phaser.Physics.Arcade.Sprite;
+      const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+
+      // Patrol Check: World Bounds
+      // If enemy hits left (50px) or right (LEVEL_WIDTH - 50) edges of world
+      if ((enemy.x <= 50 && enemyBody.velocity.x < 0) || (enemy.x >= LEVEL_WIDTH - 50 && enemyBody.velocity.x > 0)) {
+        const currentDir = enemy.getData("direction");
+        const newDir = -currentDir;
+
+        enemyBody.setVelocityX(80 * newDir);
+        enemy.setFlipX(newDir < 0);
+        enemy.setData("direction", newDir);
+      }
+      // Note: We REMOVED the "Target Player" logic block here.
+    });
+
+    this.sandals.getChildren().forEach((child) => {
+      const sandal = child as Phaser.Physics.Arcade.Sprite;
+      const startX = sandal.getData("startX");
+      const startY = sandal.getData("startY");
+      const amplitude = sandal.getData("amplitude");
+      const freq = sandal.getData("frequency");
+
+      if (typeof startX === "number") {
+        const distanceTraveled = Math.abs(sandal.x - startX);
+        const yOffset = Math.abs(Math.sin(distanceTraveled * freq)) * amplitude;
+        sandal.y = startY - yOffset;
+      }
+
+      if (sandal.x < 0 || sandal.x > LEVEL_WIDTH) {
+        sandal.destroy();
+      }
+    });
+  }
+
+  // --- Helper methods (collectSweet, collectTea, takeDamage, gameOver, etc.) remain unchanged ---
+  collectSweet(player: any, sweet: any): void {
     const sweetSprite = sweet as Phaser.Physics.Arcade.Sprite;
     this.tweens.add({
       targets: sweetSprite,
@@ -615,10 +523,7 @@ export class GameScene extends Phaser.Scene {
     this.scoreText.setText(`Score: ${this.gameState.score}`);
   }
 
-  collectTea(
-    player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    tea: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-  ): void {
+  collectTea(player: any, tea: any): void {
     const teaSprite = tea as Phaser.Physics.Arcade.Sprite;
     teaSprite.destroy();
     this.gameState.hasPowerUp = true;
@@ -627,37 +532,6 @@ export class GameScene extends Phaser.Scene {
     this.gameState.score += 500;
     this.scoreText.setText(`Score: ${this.gameState.score}`);
     this.sound.play("munch", { volume: 0.6 });
-  }
-
-  handleEnemyCollision(
-    player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-  ): void {
-    const playerSprite = player as Phaser.Physics.Arcade.Sprite;
-    const enemySprite = enemy as Phaser.Physics.Arcade.Sprite;
-    const playerBody = playerSprite.body as Phaser.Physics.Arcade.Body;
-    const enemyBody = enemySprite.body as Phaser.Physics.Arcade.Body;
-    const isFalling = playerBody.velocity.y > 0;
-    const isAbove = playerBody.bottom <= enemyBody.center.y;
-    if (isFalling && isAbove) {
-      this.defeatEnemy(enemySprite);
-      playerBody.setVelocityY(-350);
-    } else if (!this.isInvulnerable) {
-      this.takeDamage();
-    }
-  }
-
-  defeatEnemy(enemy: Phaser.Physics.Arcade.Sprite): void {
-    this.sound.play("enemyDeath", { volume: 0.5 });
-    this.tweens.add({
-      targets: enemy,
-      scaleY: 0.2,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => enemy.destroy(),
-    });
-    this.gameState.score += 200;
-    this.scoreText.setText(`Score: ${this.gameState.score}`);
   }
 
   throwSandal(): void {
@@ -673,18 +547,8 @@ export class GameScene extends Phaser.Scene {
     sandalBody.setVelocityX(300 * direction);
     if (direction < 0) sandal.setFlipX(true);
     const amplitude = this.player.displayHeight / 2;
-    sandal.setData({
-      startY: startY,
-      startX: startX,
-      amplitude: amplitude,
-      frequency: 0.05,
-    });
-    this.tweens.add({
-      targets: sandal,
-      angle: 360 * direction,
-      duration: 300,
-      repeat: -1,
-    });
+    sandal.setData({ startY: startY, startX: startX, amplitude: amplitude, frequency: 0.05 });
+    this.tweens.add({ targets: sandal, angle: 360 * direction, duration: 300, repeat: -1 });
     this.time.delayedCall(1500, () => {
       if (sandal.active) sandal.destroy();
     });
@@ -693,10 +557,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  sandalHitEnemy(
-    sandal: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-    enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
-  ): void {
+  sandalHitEnemy(sandal: any, enemy: any): void {
     (sandal as Phaser.Physics.Arcade.Sprite).destroy();
     this.defeatEnemy(enemy as Phaser.Physics.Arcade.Sprite);
   }
@@ -739,11 +600,7 @@ export class GameScene extends Phaser.Scene {
     hudBg.fillRoundedRect(10, 10, 180, 50, 8);
     hudBg.setScrollFactor(0);
     this.scoreText = this.add
-      .text(20, 18, "Score: 0", {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: "12px",
-        color: "#FFD700",
-      })
+      .text(20, 18, "Score: 0", { fontFamily: '"Press Start 2P", monospace', fontSize: "12px", color: "#FFD700" })
       .setScrollFactor(0);
     this.livesContainer = this.add.container(20, 42).setScrollFactor(0);
     this.updateLivesDisplay();
@@ -752,11 +609,7 @@ export class GameScene extends Phaser.Scene {
     powerUpBg.fillStyle(0x228b22, 0.9);
     powerUpBg.fillRoundedRect(-60, -15, 120, 30, 8);
     const powerUpText = this.add
-      .text(0, 0, "X = THROW", {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: "10px",
-        color: "#FFFFFF",
-      })
+      .text(0, 0, "X = THROW", { fontFamily: '"Press Start 2P", monospace', fontSize: "10px", color: "#FFFFFF" })
       .setOrigin(0.5);
     this.powerUpIndicator.add([powerUpBg, powerUpText]).setVisible(false);
   }
@@ -769,70 +622,114 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  update(): void {
-    if (this.isGameOver || this.isPaused) return;
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    const onGround = body.touching.down || body.blocked.down;
-    const isMoving = this.cursors.left.isDown || this.cursors.right.isDown;
-    if (this.cursors.left.isDown) {
-      body.setVelocityX(-this.playerSpeed);
-      this.player.setFlipX(true);
-    } else if (this.cursors.right.isDown) {
-      body.setVelocityX(this.playerSpeed);
-      this.player.setFlipX(false);
-    } else {
-      body.setVelocityX(0);
-    }
-    if (isMoving) {
-      if (!this.player.anims.isPlaying || this.player.anims.currentAnim?.key !== "player-walk") {
-        this.player.anims.play("player-walk");
-      }
-    } else {
-      this.player.anims.stop();
-      this.player.setTexture("player-static");
-    }
-    if ((this.cursors.space.isDown || this.cursors.up.isDown) && onGround) {
-      body.setVelocityY(JUMP_VELOCITY);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.attackKey) && this.gameState.hasPowerUp) {
-      this.throwSandal();
-    }
-    this.enemies.getChildren().forEach((child) => {
-      const enemy = child as Phaser.Physics.Arcade.Sprite;
-      const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
-      if (enemy.x <= 50 || enemy.x >= LEVEL_WIDTH - 50) {
-        const newDirection = enemy.x <= 50 ? 1 : -1;
-        enemyBody.setVelocityX(80 * newDirection);
-        enemy.setFlipX(newDirection < 0);
-        enemy.setData("direction", newDirection);
-      } else {
-        const currentDirection = enemy.getData("direction") as number;
-        const targetDirection = this.player.x > enemy.x ? 1 : -1;
-        if (currentDirection !== targetDirection) {
-          enemy.setData("direction", targetDirection);
-          enemyBody.setVelocityX(80 * targetDirection);
-          enemy.setFlipX(targetDirection < 0);
-        }
-      }
+  createControlButtons(): void {
+    // ... (Keep existing button code)
+    const camWidth = this.cameras.main.width;
+    this.soundButton = this.add.container(camWidth - 90, 30);
+    this.soundButton.setScrollFactor(0).setDepth(100);
+    const soundBg = this.add.graphics();
+    soundBg.fillStyle(0x000000, 0.6);
+    soundBg.fillRoundedRect(-20, -20, 40, 40, 8);
+    const isMuted = this.sound.mute;
+    const soundIcon = this.add.text(0, 0, isMuted ? "🔇" : "🔊", { fontSize: "20px" });
+    soundIcon.setOrigin(0.5).setName("soundIcon");
+    this.soundButton.add([soundBg, soundIcon]);
+    this.soundButton.setSize(40, 40).setInteractive({ useHandCursor: true });
+    this.soundButton.on("pointerdown", () => {
+      this.sound.mute = !this.sound.mute;
+      const icon = this.soundButton?.getByName("soundIcon") as Phaser.GameObjects.Text;
+      if (icon) icon.setText(this.sound.mute ? "🔇" : "🔊");
     });
 
-    // NOTE: Removed previous Level Width win check here.
-    // The door overlap logic now handles the win condition.
+    this.pauseButton = this.add.container(camWidth - 40, 30);
+    this.pauseButton.setScrollFactor(0).setDepth(100);
+    const pauseBg = this.add.graphics();
+    pauseBg.fillStyle(0x000000, 0.6);
+    pauseBg.fillRoundedRect(-20, -20, 40, 40, 8);
+    const pauseIcon = this.add.text(0, 0, "⏸️", { fontSize: "20px" });
+    pauseIcon.setOrigin(0.5);
+    this.pauseButton.add([pauseBg, pauseIcon]);
+    this.pauseButton.setSize(40, 40).setInteractive({ useHandCursor: true });
+    this.pauseButton.on("pointerdown", () => this.togglePause());
+    this.input.keyboard?.on("keydown-ESC", () => this.togglePause());
+  }
 
-    this.sandals.getChildren().forEach((child) => {
-      const sandal = child as Phaser.Physics.Arcade.Sprite;
-      const startX = sandal.getData("startX");
-      const startY = sandal.getData("startY");
-      const amplitude = sandal.getData("amplitude");
-      const freq = sandal.getData("frequency");
-      if (typeof startX === "number") {
-        const distanceTraveled = Math.abs(sandal.x - startX);
-        const yOffset = Math.abs(Math.sin(distanceTraveled * freq)) * amplitude;
-        sandal.y = startY - yOffset;
-      }
-      if (sandal.x < 0 || sandal.x > LEVEL_WIDTH) {
-        sandal.destroy();
-      }
+  togglePause(): void {
+    if (this.isGameOver) return;
+    this.isPaused = !this.isPaused;
+    if (this.isPaused) {
+      this.physics.pause();
+      this.showPauseMenu();
+    } else {
+      this.physics.resume();
+      this.hidePauseMenu();
+    }
+  }
+
+  showPauseMenu(): void {
+    // ... (Keep existing pause menu code)
+    const { width, height } = this.cameras.main;
+    this.pauseMenu = this.add
+      .container(width / 2, height / 2)
+      .setScrollFactor(0)
+      .setDepth(200);
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.7);
+    overlay.fillRect(-width / 2, -height / 2, width, height);
+    const menuBg = this.add.graphics();
+    menuBg.fillStyle(0x2f1f0f, 1);
+    menuBg.fillRoundedRect(-120, -100, 240, 200, 16);
+    menuBg.lineStyle(3, 0xd4a574);
+    menuBg.strokeRoundedRect(-120, -100, 240, 200, 16);
+    const title = this.add
+      .text(0, -70, "PAUSED", { fontFamily: '"Press Start 2P", monospace', fontSize: "20px", color: "#D4A574" })
+      .setOrigin(0.5);
+    const resumeBtn = this.createMenuButton(0, -20, "▶ Resume", () => this.togglePause());
+    const retryBtn = this.createMenuButton(0, 30, "↻ Retry", () => {
+      this.hidePauseMenu();
+      this.scene.restart();
     });
+    const menuBtn = this.createMenuButton(0, 80, "🏠 Main Menu", () => {
+      this.hidePauseMenu();
+      this.scene.start("MenuScene");
+    });
+    this.pauseMenu.add([overlay, menuBg, title, resumeBtn, retryBtn, menuBtn]);
+  }
+
+  createMenuButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
+    const btn = this.add.container(x, y);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x8b2942, 1);
+    bg.fillRoundedRect(-90, -18, 180, 36, 8);
+    const label = this.add
+      .text(0, 0, text, { fontFamily: '"Press Start 2P", monospace', fontSize: "10px", color: "#FFFFFF" })
+      .setOrigin(0.5);
+    btn.add([bg, label]).setSize(180, 36).setInteractive({ useHandCursor: true });
+    btn.on("pointerover", () => this.tweens.add({ targets: btn, scale: 1.05, duration: 100 }));
+    btn.on("pointerout", () => this.tweens.add({ targets: btn, scale: 1, duration: 100 }));
+    btn.on("pointerdown", callback);
+    return btn;
+  }
+
+  hidePauseMenu(): void {
+    if (this.pauseMenu) {
+      this.pauseMenu.destroy();
+      this.pauseMenu = undefined;
+    }
+  }
+
+  createBackground(): void {
+    const bgTexture = this.textures.get("background");
+    const bgWidth = bgTexture.getSourceImage().width;
+    const bgHeight = bgTexture.getSourceImage().height;
+    const scale = LEVEL_HEIGHT / bgHeight;
+    const scaledWidth = bgWidth * scale;
+    const tilesNeeded = Math.ceil(LEVEL_WIDTH / scaledWidth) + 1;
+    const sky = this.add.rectangle(LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2, LEVEL_WIDTH, LEVEL_HEIGHT, 0xfdcb6e);
+    sky.setOrigin(0.5, 0.5);
+    for (let i = 0; i < tilesNeeded; i++) {
+      const bg = this.add.image(i * scaledWidth, 0, "background");
+      bg.setOrigin(0, 0).setScale(scale).setAlpha(0.7);
+    }
   }
 }
